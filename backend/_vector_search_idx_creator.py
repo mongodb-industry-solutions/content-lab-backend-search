@@ -3,6 +3,10 @@ from pymongo.errors import OperationFailure
 
 from db.mdb import MongoDBConnector
 
+import os
+from dotenv import load_dotenv
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -71,9 +75,17 @@ class VectorSearchIDXCreator(MongoDBConnector):
 
 # Example usage
 if __name__ == "__main__":
-    vs_idx = VectorSearchIDXCreator(collection_name="my_collection")
-    result = vs_idx.create_index(
-        index_name="my_index",
-        vector_field="embedding"
-    )
+
+    collections = ["news", "social_posts"]
+
+    for collection_name in collections:
+        logger.info(f"Collection being proccessed: {collection_name}")
+        vs_idx = VectorSearchIDXCreator(collection_name=collection_name)
+        result = vs_idx.create_index(
+            index_name="semantic_search_embeddings",
+            vector_field="embedding"
+        )
+    # this should be the result.
     print(result)
+
+

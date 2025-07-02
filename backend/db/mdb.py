@@ -1,5 +1,6 @@
 import os
 from pymongo import MongoClient
+from abc import abstractmethod
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
