@@ -12,8 +12,6 @@ import spacy
 nlp = spacy.load("en_core_web_sm")
 print("Using spaCy")
 
-
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
 from bedrock.cohere_embeddings import BedrockCohereEnglishEmbeddings
@@ -109,7 +107,7 @@ def convert_query_to_embedding(query_text):
 
 # 2. Function to search for similar content using vector search
 
-def search_similar_content(query_embedding, limit=5):
+def search_similar_content(query_embedding, limit=3):
     db = MongoDBConnector()
     all_results = {}
     collection_names = ["news", "reddit_posts"]
@@ -124,7 +122,7 @@ def search_similar_content(query_embedding, limit=5):
                     "queryVector":   query_embedding,
                     "path":     "embedding",
                     "limit":        limit,
-                    "numCandidates": limit * 10
+                    "numCandidates": limit * 3
                 }
             },
             {
@@ -220,7 +218,7 @@ def display_clean_snippets(snippets):
 if __name__ == "__main__":
     check_embeddings()
     # Example search
-    query = "What is the trendy in Europe"
+    query = "What is trendy in Spain?"
     print(f"\nExample search: '{query}'")
     query_embedding = convert_query_to_embedding(query)
 

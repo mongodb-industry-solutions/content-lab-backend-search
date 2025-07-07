@@ -1,7 +1,7 @@
 # ---- llm_output.py ----
 
 # Process news and Reddit snippets using Claude Model from bedrock to extract structured insights.
-
+import time
 import os
 import sys
 import json
@@ -18,7 +18,6 @@ import datetime
 import concurrent.futures
 
 # Configure logging
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -47,39 +46,23 @@ class ContentAnalyzer:
         
         return text
 
-    # -------- Prompt Formatting Methods --------
+    # -------- SIMPLIFIED Prompt Formatting Methods --------
 
     def _format_news_prompt(self, snippets: List[str], ids: List[str], urls: List[str]) -> str:
-        """Prompt template with few-shot example for news articles."""
+        """Simplified prompt template for news articles."""
         
-        # Clear system context
+        # Minimal header
+        header = "Extract structured data from these news articles in JSON format."
         
-        header = (
-            "You are a precise news analyst trained to extract structured information. "
-            "I need you to analyze, understand the news articles contexually and extract specific fields in a consistent JSON format."
-        )
-        
-        # A few-shot example
+        # Concise example
         example = (
-            "EXAMPLE INPUT:\n"
-            "1. AI Ethics Group Warns of Risks in Healthcare Applications\n"
-            "A leading AI ethics organization released a report highlighting concerns about rapid deployment "
-            "of AI systems in healthcare without proper validation or oversight.\n"
-            "url: https://example.com/ai-ethics-healthcare\n\n"
-            
-            "EXAMPLE OUTPUT:\n"
-            "[\n"
-            "  {\n"
-            "    \"topic\": \"AI ethics in healthcare\",\n"
-            "    \"keywords\": [\"AI validation\", \"medical oversight\", \"patient safety\", \"algorithmic bias\", \"regulatory gaps\"],\n"
-            "    \"description\": \"Ethics experts warn that deploying unvalidated AI systems in healthcare settings poses significant risks to patient outcomes and data privacy.\",\n"
-            "    \"label\": \"technology\",\n"
-            "    \"url\": \"https://example.com/ai-ethics-healthcare\"\n"
-            "  }\n"
-            "]\n\n"
-            "NOW ANALYZE THESE ARTICLES:"
+            "EXAMPLE:\n"
+            "Input: AI Ethics Group Warns of Risks in Healthcare Applications\n"
+            "A leading AI ethics organization released concerns about AI in healthcare without proper validation.\n"
+            "url: https://example.com/ai-ethics\n\n"
+            "Output: [{\"topic\":\"AI ethics in healthcare\",\"keywords\":[\"AI validation\",\"medical oversight\",\"patient safety\",\"algorithmic bias\"],\"description\":\"Ethics experts warn about unvalidated AI systems in healthcare settings.\",\"label\":\"technology\",\"url\":\"https://example.com/ai-ethics\"}]"
         )
-        
+
         # Format the articles to analyze
         items = []
         for idx, (_, snippet, url) in enumerate(zip(ids, snippets, urls), 1):
@@ -87,63 +70,33 @@ class ContentAnalyzer:
         
         body = "\n\n".join(items)
         
-        # Detailed instructions
+        # Minimal instructions
         task = (
-            "\n\nFor each article above, create a JSON object with these fields:\n"
-            "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
-            "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
-            "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
-            "5. \"url\": The source URL\n\n"
-            
-            "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
-            "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "\n\nCreate a JSON array with objects containing:\n"
+            "1. \"topic\": 3-5 word headline\n"
+            "2. \"keywords\": EXACTLY 4 specific terms\n"
+            "3. \"description\": One sentence summary (15 words max)\n"
+            "4. \"label\": one of [\"technology\",\"business\",\"health\",\"culture\",\"sports\"]\n"
+            "5. \"url\": source URL\n"
+            "Use proper JSON format with double quotes."
         )
         
         return f"{header}\n\n{example}\n\n{body}{task}"
 
     def _format_reddit_prompt(self, snippets: List[str], ids: List[str], urls: List[Optional[str]]) -> str:
-        """The prompt template with few-shot example for Reddit posts."""
+        """Simplified prompt template for Reddit posts."""
         
-        # Start with a clear system context
-        header = (
-            "You are a community insights analyst specializing in Reddit discourse analysis. "
-            "Your expertise lies in identifying collective sentiment patterns, recognizing consensus vs. disagreement, "
-            "and extracting key perspectives from online communities. "
-            "Reddit discussions often contain diverse viewpoints, emotional undertones, and specialized terminology. "
-            "Your task is to analyze these posts with nuance, capturing both explicit statements and implicit community values. "
-            "Focus on what makes each discussion unique - the specific concerns, terminology, and sentiment that "
-            "characterize this particular community's approach to the topic. "
-            "Extract structured information that preserves the authentic voice of the community while "
-            "organizing it into consistent, comparable data fields."
-        )
+        # Minimal header
+        header = "Extract structured data from these Reddit posts in JSON format."
         
-        # Add a few-shot example
-
+        # Concise example
         example = (
-            "EXAMPLE INPUT:\n"
-            "1. Will AI replace programmers in the next 5 years?\n"
-            "Comment: As someone working in ML for 8 years, no chance. AI tools are great assistants but terrible at "
-            "understanding real-world constraints and debugging complex systems.\n"
-            "Comment: My company is already using GitHub Copilot and it's saved me hours of boilerplate coding. "
-            "I think junior dev roles will definitely change.\n"
-            "url: https://reddit.com/r/programming/example\n\n"
-            
-            "EXAMPLE OUTPUT:\n"
-            "[\n"
-            "  {\n"
-            "    \"topic\": \"AI impact on programming\",\n"
-            "    \"keywords\": [\"job security\", \"coding assistants\", \"skill evolution\", \"industry perspective\", \"junior developers\"],\n"
-            "    \"description\": \"The community has mixed opinions on AI's impact on programming careers, with experienced developers emphasizing AI's limitations while acknowledging its usefulness for routine tasks.\",\n"
-            "    \"label\": \"technology\",\n"
-            "    \"url\": \"https://reddit.com/r/programming/example\"\n"
-            "  }\n"
-            "]\n\n"
-            "NOW ANALYZE THESE REDDIT POSTS:"
+            "EXAMPLE:\n"
+            "Input: Will AI replace programmers?\n"
+            "Comment: AI tools help but can't debug complex systems.\n"
+            "Comment: GitHub Copilot saves time on boilerplate code.\n"
+            "url: https://reddit.com/example\n\n"
+            "Output: [{\"topic\":\"AI impact on programming\",\"keywords\":[\"job security\",\"coding assistants\",\"automation\",\"developer tools\"],\"description\":\"Mixed opinions on AI's impact on programming careers.\",\"label\":\"technology\",\"url\":\"https://reddit.com/example\"}]"
         )
         
         # Format the posts to analyze
@@ -154,21 +107,15 @@ class ContentAnalyzer:
         
         body = "\n\n".join(items)
         
-        # Detailed instructions
+        # Minimal instructions
         task = (
-            "\n\nFor each Reddit post above, create a JSON object with these fields:\n"
-            "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
-            "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
-            "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
-            "5. \"url\": The source URL or null if unavailable\n\n"
-            
-            "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
-            "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "\n\nCreate a JSON array with objects containing:\n"
+            "1. \"topic\": 3-5 word focus\n"
+            "2. \"keywords\": EXACTLY 4 specific terms\n"
+            "3. \"description\": One sentence on community sentiment (15 words max)\n"
+            "4. \"label\": one of [\"technology\",\"business\",\"health\",\"culture\",\"sports\"]\n"
+            "5. \"url\": source URL or null\n"
+            "Use proper JSON format with double quotes."
         )
         
         return f"{header}\n\n{example}\n\n{body}{task}"
@@ -239,22 +186,41 @@ class ContentAnalyzer:
         return analysis
 
     def analyze_search_results(self, query: str) -> Dict[str, List[Dict[str, Any]]]:
+        start_time = time.time()
+    
+        # Embedding generation timing
+        embed_start = time.time()
         query_embedding = convert_query_to_embedding(query)
+        embed_time = time.time() - embed_start
+        logger.info(f"Embedding generation took {embed_time:.2f} seconds")
+        
         if not query_embedding:
             logger.error("Failed to generate embedding for query")
             return {"suggestions": []} 
 
-        all_results = search_similar_content(query_embedding, 2)
+        search_start = time.time()
+        all_results = search_similar_content(query_embedding, 1)  # Reduced from 2 to 1 for faster processing
+        search_time = time.time() - search_start
+        logger.info(f"Content search took {search_time:.2f} seconds")
+        
         news_results = all_results.get("news", [])
         reddit_results = all_results.get("reddit_posts", [])
 
         # Use the threadPool here for parallel processing
         with concurrent.futures.ThreadPoolExecutor() as executor:
+            news_start = time.time()
             future_news = executor.submit(self.process_news, news_results)
+
+            reddit_start = time.time()
             future_reddit = executor.submit(self.process_reddit, reddit_results)
 
             news_analysis = future_news.result()
+            news_time = time.time() - news_start
+            logger.info(f"News analysis took {news_time:.2f} seconds")
+
             reddit_analysis = future_reddit.result()
+            reddit_time = time.time() - reddit_start
+            logger.info(f"Reddit analysis took {reddit_time:.2f} seconds")
         
         combined_results = []
 
@@ -266,7 +232,19 @@ class ContentAnalyzer:
             item["source_type"] = "reddit"
             combined_results.append(item)
 
-        return {"suggestions": combined_results}
+        total_time = time.time() - start_time
+        logger.info(f"Total analysis took {total_time:.2f} seconds")
+    
+        return {
+            "suggestions": combined_results,
+            "timing": {
+                "embedding": embed_time,
+                "search": search_time,
+                "news_processing": news_time,
+                "reddit_processing": reddit_time,
+                "total": total_time
+            }
+        }
     
     # Save suggestions to MongoDB
     def store_analysis(self, db_connector: MongoDBConnector, analysis: Dict[str, List[Dict[str, Any]]], 
@@ -319,7 +297,9 @@ class ContentAnalyzer:
         Analyze search results for a query and store them in the database.
         """
         # Get analysis results with combined structure
+        analysis_start = time.time()
         result = self.analyze_search_results(query)
+        analysis_time = time.time() - analysis_start
         
         # Split them back for storage
         suggested_results = {
@@ -328,11 +308,19 @@ class ContentAnalyzer:
         }
         
         # Store results in MongoDB
+        storage_start = time.time()
         storage_counts = self.store_analysis(db_connector, suggested_results, query)
+        storage_time = time.time() - storage_start
+        logger.info(f"Database storage took {storage_time:.2f} seconds")
+        
+        timing = result.get("timing", {})
+        timing["storage"] = storage_time
+        timing["total_with_storage"] = analysis_time + storage_time
         
         return {
-            "analysis": result["suggestions"],  # Return combined list
-            "stored": storage_counts
+            "analysis": result["suggestions"],
+            "stored": storage_counts,
+            "timing": timing
         }
     
 
@@ -340,9 +328,14 @@ if __name__ == "__main__":
     analyzer = ContentAnalyzer()
     db_connector = MongoDBConnector()
 
-    query = "What is the trending in Europe?"
-    # Use analyze_and_store_search_results instead of analyze_search_results
+    query = "What is the trending in Spain?"
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 
     print(f"Analysis complete. Stored {results['stored']['news']} news and {results['stored']['reddit']} Reddit analysis documents.")
     print(json_util.dumps(results['analysis'], indent=2))
+    
+    # Print timing information
+    if "timing" in results:
+        print("\nTiming information:")
+        for step, duration in results["timing"].items():
+            print(f"  - {step}: {duration:.2f} seconds")
