@@ -2308,6 +2308,21 @@ botocore = ">=1.37.4,<2.0a.0"
 crt = ["botocore[crt] (>=1.37.4,<2.0a.0)"]
 
 [[package]]
+name = "scheduler"
+version = "0.8.8"
+description = "A simple in-process python scheduler library with asyncio, threading and timezone support."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "scheduler-0.8.8-py3-none-any.whl", hash = "sha256:8f52ea6390757e4f42a8becbcb474e7744a3082ea5e1cdb0c972ea8b2c5d1891"},
+    {file = "scheduler-0.8.8.tar.gz", hash = "sha256:4575a12cd269e4e4896409836fd911560cb63fb7634360ee62aa2fa4ec495ffd"},
+]
+
+[package.dependencies]
+typeguard = ">=3.0.0"
+
+[[package]]
 name = "setuptools"
 version = "80.9.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -2776,6 +2791,21 @@ requests-oauthlib = ">=1.2.0,<3"
 async = ["aiohttp (>=3.7.3,<4)", "async-lru (>=1.0.3,<3)"]
 dev = ["coverage (>=4.4.2)", "coveralls (>=2.1.0)", "tox (>=3.21.0)"]
 test = ["urllib3 (<2)", "vcrpy (>=1.10.3)"]
+
+[[package]]
+name = "typeguard"
+version = "4.4.4"
+description = "Run-time type checker for Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "typeguard-4.4.4-py3-none-any.whl", hash = "sha256:b5f562281b6bfa1f5492470464730ef001646128b180769880468bd84b68b09e"},
+    {file = "typeguard-4.4.4.tar.gz", hash = "sha256:3a7fd2dffb705d4d0efaed4306a704c89b9dee850b688f060a8b1615a79e5f74"},
+]
+
+[package.dependencies]
+typing_extensions = ">=4.14.0"
 
 [[package]]
 name = "typer"
@@ -3247,4 +3277,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "d764d891f647fb9eb72995c6059ecacaef5ebd9b61b403abd860b4ce9087b35e"
+content-hash = "2a3cface628f3d81c7ea2f574f175b22cb39111b3724b577f06d66fabeaa904f"

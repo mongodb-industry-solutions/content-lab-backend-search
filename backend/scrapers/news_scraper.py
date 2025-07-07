@@ -22,27 +22,28 @@ from db.mdb import MongoDBConnector
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# News_Categories Global Variable
+
+NEWS_CATEGORIES = ["barcelona", "technology", "health", "sports", "politics",
+               "science", "business", "entertainment", "environment", "travel", "education"]
+
+
 # ---------1. Abstract base class for news scrapers---------    
 
 class NewsScraper(ABC):
     """Base class"""
-
     """
         Initialize a news scraper.
-        
         Args:
             url (str): The URL to scrape
             category (str): The category of news (e.g., 'finance', 'tech')
     """
-
     def __init__(self, url: str, category: str):
         self.url = url
         self.category = category
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-    
-
     
     def _fetch_page(self) -> BeautifulSoup:
         """
@@ -129,11 +130,11 @@ class NewsScraper(ABC):
         base_value = np.random.lognormal(mean=0.0, sigma=0.5)
 
         # Scale to reasonable ranges for each metric type
-        visits_scale = 10000  # Scale for number of visits
-        retention_scale = 300  # Scale for retention (in seconds)
-        comments_scale = 500  # Scale for number of comments
-        shares_scale = 1000   # Scale for number of shares
-        
+        visits_scale = 10000  
+        retention_scale = 300 
+        comments_scale = 500  
+        shares_scale = 1000  
+
         visit_factor = np.random.lognormal(mean=0.0, sigma=0.3)
         retention_factor = np.random.lognormal(mean=0.0, sigma=0.3)
         comment_factor = np.random.lognormal(mean=0.0, sigma=0.4)
@@ -257,12 +258,7 @@ if __name__ == "__main__":
         # NewsAPI scraper
         logger.info("Running NewsAPI scraper...")
         newsapi_scraper = NewsAPIScraper()
-        categories = ["technology", "health", "sports", "barcelona", "entertainment", "business"]
-
-
-        categories = ["trending", "barcelona", "technology","health","sports","politics", "science", "business", "entertainment", "environment", "travel"]
-        newsapi_scraper.run_for_multiple_categories(categories, db_connector)
-
+        newsapi_scraper.run_for_multiple_categories(NEWS_CATEGORIES, db_connector)
         logger.info(f"Completed all scraping tasks.")
 
     except Exception as e:

@@ -21,10 +21,6 @@ from db.mdb import MongoDBConnector
 load_dotenv()
 
 REDDIT_COLLECTION = os.getenv("REDDIT_COLLECTION", "reddit_posts")
-SUBREDDITS        = [
-    "technology", "politics", "worldnews", "science",
-    "aww", "funny", "barcelona", "movies", "music", "sports"
-]
 
 SUBREDDITS = [
     "technology",   
@@ -36,9 +32,9 @@ SUBREDDITS = [
     "entertainment", 
     "environment",   
     "travel",       
-    "education",     
+    "education",   
+    "barcelona"  
 ]
-
 LIST_TYPE     = "hot"
 POST_LIMIT    = 15
 COMMENT_LIMIT = 5

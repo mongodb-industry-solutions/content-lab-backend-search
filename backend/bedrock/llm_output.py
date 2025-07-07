@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from .anthropic_chat_completions import BedrockAnthropicChatCompletions
+from anthropic_chat_completions import BedrockAnthropicChatCompletions
 from test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
@@ -90,8 +90,8 @@ class ContentAnalyzer:
         task = (
             "\n\nFor each article above, create a JSON object with these fields:\n"
             "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
-            "2. \"keywords\": An array of EXACTLY 5 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
-            "3. \"description\": One clear, information-dense sentence summarizing the key insight (aim for 15-25 words)\n"
+            "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
+            "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
             "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
             "5. \"url\": The source URL\n\n"
             
@@ -157,8 +157,8 @@ class ContentAnalyzer:
         task = (
             "\n\nFor each Reddit post above, create a JSON object with these fields:\n"
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
-            "2. \"keywords\": An array of EXACTLY 5 terms reflecting community perspectives (be specific, avoid generic terms)\n"
-            "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern\n"
+            "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
+            "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
             "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
             "5. \"url\": The source URL or null if unavailable\n\n"
             
