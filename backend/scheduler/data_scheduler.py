@@ -26,12 +26,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ScraperScheduler")
 
+# Scheduler verification function
+def log_scheduler_status():
+    """Log the scheduler status and upcoming tasks"""
+    logger.info(f"Scheduler heartbeat at {datetime.now()}")
+    logger.info(f"Upcoming tasks:")
+    logger.info(f"- News scraper: {scheduler.get_next_run_time(run_news_scraper)}")
+    logger.info(f"- Reddit scraper: {scheduler.get_next_run_time(run_reddit_scraper)}")
+    logger.info(f"- Embedding processor: {scheduler.get_next_run_time(process_embeddings)}")
+
 # Scraper Jobs
 
 def run_news_scraper():
     """Run the news scraper to collect articles from the categories."""
-
-    logger.info("Starting news scraper job")
+    logger.info(f"Starting news scraper job at {datetime.now()}")
     try:
         db_connector = MongoDBConnector()
         newsapi_scraper = NewsAPIScraper()
@@ -42,10 +50,9 @@ def run_news_scraper():
         logger.error(f"Failed to connect to MongoDB: {e}")
 
 
-
 def run_reddit_scraper():
     """Run the Reddit scraper to collect posts from the subreddits."""
-    logger.info("Starting Reddit scraper job")
+    logger.info(f"Starting Reddit scraper job at {datetime.now()}")
     try:
         db_connector = MongoDBConnector()
         total_count = 0
@@ -62,12 +69,22 @@ def run_reddit_scraper():
 
 def process_embeddings():
     """Process embeddings for newly scraped content."""
-    logger.info("Starting embeddings processing job")
+    start_time = datetime.now()
+    logger.info(f"Starting embeddings processing job at {start_time}")
     try:
+        db_connector = MongoDBConnector()
+        # Check document counts before processing
+        news_without_embeddings = db_connector.get_collection("news").count_documents({"embedding": {"$exists": False}})
+        reddit_without_embeddings = db_connector.get_collection("reddit_posts").count_documents({"embedding": {"$exists": False}})
+        logger.info(f"Found {news_without_embeddings} news articles and {reddit_without_embeddings} Reddit posts without embeddings")
+        
         embedder = ContentEmbedder(batch_size=20)
         news_count = embedder.process_news_embeddings()
         reddit_count = embedder.process_reddit_embeddings()
-        logger.info(f"Embeddings processing completed. Processed {news_count} news articles and {reddit_count} Reddit posts")
+        
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        logger.info(f"Embeddings processing completed in {duration} seconds. Processed {news_count} news articles and {reddit_count} Reddit posts")
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
 
@@ -77,17 +94,23 @@ scheduler = Scheduler()
 # Schedule the jobs
 
 # news scraper runs at 1 PM daily
-
 scheduler.daily(datetime.strptime("13:00", "%H:%M").time(), run_news_scraper)
 
 # reddit scraper runs at 1.30 PM daily
 scheduler.daily(datetime.strptime("13:30", "%H:%M").time(), run_reddit_scraper)
 
+# embedding processor runs at 2 PM daily
 scheduler.daily(datetime.strptime("14:00", "%H:%M").time(), process_embeddings)
 
+# Add scheduler status check every 2 hours
+scheduler.interval(timedelta(hours=2), log_scheduler_status)
+
 if __name__ == "__main__":
-    logger.info("Starting data scraper scheduler")
+    logger.info(f"Starting data scraper scheduler at {datetime.now()}")
     try:
+        # Initial status display
+        log_scheduler_status()
+        
         # Run the scheduler
         scheduler.run()
     except KeyboardInterrupt:

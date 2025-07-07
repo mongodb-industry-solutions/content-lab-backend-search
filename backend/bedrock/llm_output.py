@@ -15,6 +15,7 @@ from anthropic_chat_completions import BedrockAnthropicChatCompletions
 from test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
+import concurrent.futures
 
 # Configure logging
 
@@ -241,20 +242,35 @@ class ContentAnalyzer:
         query_embedding = convert_query_to_embedding(query)
         if not query_embedding:
             logger.error("Failed to generate embedding for query")
-            return {"news": [], "reddit": []}
+            return {"suggestions": []} 
 
-        all_results = search_similar_content(query_embedding, 3)
+        all_results = search_similar_content(query_embedding, 2)
         news_results = all_results.get("news", [])
         reddit_results = all_results.get("reddit_posts", [])
 
-        return {
-            "news": self.process_news(news_results),
-            "reddit": self.process_reddit(reddit_results)
-        }
+        # Use the threadPool here for parallel processing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_news = executor.submit(self.process_news, news_results)
+            future_reddit = executor.submit(self.process_reddit, reddit_results)
+
+            news_analysis = future_news.result()
+            reddit_analysis = future_reddit.result()
+        
+        combined_results = []
+
+        for item in news_analysis:
+            item["source_type"] = "news"
+            combined_results.append(item)
+    
+        for item in reddit_analysis:
+            item["source_type"] = "reddit"
+            combined_results.append(item)
+
+        return {"suggestions": combined_results}
     
     # Save suggestions to MongoDB
     def store_analysis(self, db_connector: MongoDBConnector, analysis: Dict[str, List[Dict[str, Any]]], 
-                       query: str = None) -> Dict[str, int]:
+                  query: str = None) -> Dict[str, int]:
         if not analysis:
             logger.warning("No analysis results to store")
             return {"news": 0, "reddit": 0}
@@ -263,38 +279,36 @@ class ContentAnalyzer:
         stored_counts = {"news": 0, "reddit": 0}
 
         try:
-            # Process and store news analysis
-            news_docs = []
-            for item in analysis.get("news", []):
-                doc = item.copy()
-                doc["type"] = "news_analysis"
-                doc["analyzed_at"] = timestamp
-                if query:
-                    doc["source_query"] = query
-                news_docs.append(doc)
+            # Define content types mapping
+            content_types = {
+                "news": "news_analysis",
+                "reddit": "reddit_analysis"
+            }
             
-            if news_docs:
-                result = db_connector.insert_many(SUGGESTION_COLLECTION, news_docs)
-                stored_counts["news"] = len(result)
-                logger.info(f"Stored {len(news_docs)} news analysis documents")
-            
-            # Process and store reddit analysis
-            reddit_docs = []
-            for item in analysis.get("reddit", []):
-                doc = item.copy()
-                doc["type"] = "reddit_analysis"
-                doc["analyzed_at"] = timestamp
-                if query:
-                    doc["source_query"] = query
-                reddit_docs.append(doc)
-            
-            if reddit_docs:
-                result = db_connector.insert_many(SUGGESTION_COLLECTION, reddit_docs)
-                stored_counts["reddit"] = len(result)
-                logger.info(f"Stored {len(reddit_docs)} Reddit analysis documents")
+            # Process each content type in a single loop
+            for content_key, analysis_type in content_types.items():
+                # Prepare documents for this content type
+                docs = []
+                for item in analysis.get(content_key, []):
+                    doc = item.copy()
+                    if "source_type" in doc:
+                        del doc["source_type"]
+                        
+                    doc["type"] = analysis_type
+                    doc["analyzed_at"] = timestamp
+                    if query:
+                        doc["source_query"] = query
+                        
+                    docs.append(doc)
+                
+                # Store documents if any exist
+                if docs:
+                    result = db_connector.insert_many(SUGGESTION_COLLECTION, docs)
+                    stored_counts[content_key] = len(result)
+                    logger.info(f"Stored {len(docs)} {content_key} analysis documents")
             
             return stored_counts
-        
+            
         except Exception as e:
             logger.error(f"Error storing analysis results: {e}")
             return {"news": 0, "reddit": 0}
@@ -304,23 +318,29 @@ class ContentAnalyzer:
         """
         Analyze search results for a query and store them in the database.
         """
-        # Get analysis results
-        suggested_results = self.analyze_search_results(query)
+        # Get analysis results with combined structure
+        result = self.analyze_search_results(query)
+        
+        # Split them back for storage
+        suggested_results = {
+            "news": [item for item in result["suggestions"] if item.get("source_type") == "news"],
+            "reddit": [item for item in result["suggestions"] if item.get("source_type") == "reddit"]
+        }
         
         # Store results in MongoDB
         storage_counts = self.store_analysis(db_connector, suggested_results, query)
         
         return {
-            "analysis": suggested_results,
+            "analysis": result["suggestions"],  # Return combined list
             "stored": storage_counts
         }
-
+    
 
 if __name__ == "__main__":
     analyzer = ContentAnalyzer()
     db_connector = MongoDBConnector()
 
-    query = "What is the trending news in Europe?"
+    query = "What is the trending in Europe?"
     # Use analyze_and_store_search_results instead of analyze_search_results
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 

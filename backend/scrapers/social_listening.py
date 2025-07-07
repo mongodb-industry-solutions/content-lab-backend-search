@@ -30,7 +30,6 @@ SUBREDDITS = [
     "science",      
     "business",     
     "entertainment", 
-    "environment",   
     "travel",       
     "education",   
     "barcelona"  

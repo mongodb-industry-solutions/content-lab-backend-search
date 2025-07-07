@@ -12,7 +12,7 @@ logger = logging.getLogger("Test")
 if __name__ == "__main__":
 
     logger.info("Testing news scraper...")
-    run_news_scraper()
+    # run_news_scraper()
     # logger.info("Testing Reddit scraper...")
     # run_reddit_scraper()
     
