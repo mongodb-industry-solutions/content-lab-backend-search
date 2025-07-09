@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # News_Categories Global Variable
 
-NEWS_CATEGORIES = ["barcelona", "technology", "health", "sports", "politics",
+NEWS_CATEGORIES = ["spain", "technology", "health", "sports", "politics",
                "science", "business", "entertainment", "travel", "education"]
 
 

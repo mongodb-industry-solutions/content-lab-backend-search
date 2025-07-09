@@ -16,9 +16,10 @@ from pydantic import BaseModel
 from embeddings.test_embeddings import convert_query_to_embedding, search_similar_content
 from bedrock.llm_output import ContentAnalyzer
 from db.mdb import MongoDBConnector
+from bson import ObjectId
 from langchain_tavily import TavilySearch
 from pydantic import BaseModel
-from drafts.related_info import get_related_info
+from search_topics.topic_search import search_topic
 
 load_dotenv()
 
@@ -48,6 +49,9 @@ class SuggestionFilter(BaseModel):
     label: Optional[str] = None
     days: int = 7
 
+class TopicRequest(BaseModel):
+    topic: str
+
 
 router = APIRouter()
 
@@ -55,29 +59,7 @@ router = APIRouter()
 async def read_root(request: Request):
     return {"message":"Server is running"}
 
-def json_serialize(data):
-    return json.loads(json_util.dumps(data))
 
-@app.post("/api/search")
-async def search(request: SearchRequest):
-    """
-    Search endpoint that takes a query and returns relevant content
-    """
-    try:
-        # Convert query to embedding
-        query_embedding = convert_query_to_embedding(request.query)
-        if not query_embedding:
-            raise HTTPException(status_code=500, detail="Failed to generate query embedding")
-        
-        # Search for similar content
-        results = search_similar_content(query_embedding, request.limit)
-        serialized_results = json_serialize(results)
-        return {
-            "query": request.query,
-            "results": serialized_results
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze")
 async def analyze_content(request: SearchRequest):
@@ -131,7 +113,7 @@ async def get_suggestions(
         # Fetch results
         results = list(collection.find(filter_query).sort("analyzed_at", -1).limit(limit))
         
-        # Convert ObjectId to string for JSON serialization
+        # Convert to string for JSON serialization
         for result in results:
             if "_id" in result:
                 result["_id"] = str(result["_id"])
@@ -142,6 +124,86 @@ async def get_suggestions(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/api/news")
+async def get_news():
+    """
+    Get 4 documents from the news collection
+    """
+    try:
+        collection = db.get_collection("news")
+        news = list(collection.find({}).limit(4))
+
+        # Convert to string for JSON serialization
+        for result in news:
+            if "_id" in result:
+                result["_id"] = str(result["_id"])
+
+        return news
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/reddit")
+async def get_reddit():
+    """
+    Get 10 documents from the reddit collection
+    """
+    try:
+        collection = db.get_collection("reddit_posts")
+        reddit = list(collection.find({}).limit(10))
+
+        # Convert to string for JSON serialization
+        for result in reddit:
+            if "_id" in result:
+                result["_id"] = str(result["_id"])
+
+        return reddit
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/api/profile")
+async def get_user_profiles(
+    userId: str
+):
+    """
+    Get the users profile by userId from the userProfiles collection
+    """
+    try:
+        collection = db.get_collection("userProfiles")
+        userProfile = collection.find_one({"_id": ObjectId(userId)})
+
+        # Convert to string for JSON serialization
+        if userProfile:
+            userProfile["_id"] = str(userProfile["_id"])
+
+        return userProfile
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/research")
+async def research_topic(request: TopicRequest):
+    """
+    Research a topic and get 4 key points for content creation
+    """
+    try:
+        # Use the topic_search function to get recent updates
+        results = search_topic(request.topic, max_results=4)
+        
+        return {
+            "topic": request.topic,
+            "keyPoints": results["results"],
+            "resultCount": results["result_count"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     import uvicorn
