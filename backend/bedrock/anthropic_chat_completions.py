@@ -16,6 +16,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ---------- BedrockAnthropicChatCompletions Class ----------
 
 class BedrockAnthropicChatCompletions(BedrockClient):
     """ A class to generate chat completions using Bedrock's Anthropic text models"""
@@ -85,3 +86,4 @@ class BedrockAnthropicChatCompletions(BedrockClient):
         response_text = model_response["content"][0]["text"]
 
         return response_text
+

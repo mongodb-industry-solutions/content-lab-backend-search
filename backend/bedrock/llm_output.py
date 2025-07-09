@@ -11,8 +11,8 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from anthropic_chat_completions import BedrockAnthropicChatCompletions
-from test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
+from .anthropic_chat_completions import BedrockAnthropicChatCompletions
+from embeddings.test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
 import concurrent.futures
@@ -27,7 +27,7 @@ SUGGESTION_COLLECTION = os.getenv("SUGGESTION_COLLECTION", "suggestions")
 
 class ContentAnalyzer:
     """
-    Process news and Reddit snippets using Claude to extract structured insights.
+    Process news and Reddit snippets using LLMs to extract structured insights.
     """
     def __init__(self):
         self.llm = BedrockAnthropicChatCompletions()
@@ -183,7 +183,7 @@ class ContentAnalyzer:
             urls.append(article.get('url', ''))
         
         prompt = self._format_news_prompt(snippets, ids, urls)
-        logger.info("Sending batch news prompt to Claude")
+        logger.info("Sending batch news prompt")
         
         response = self.llm.predict(prompt)
         logger.debug(f"Raw response (first 100 chars): {response[:100]}...")
@@ -215,7 +215,7 @@ class ContentAnalyzer:
             urls.append(post.get('url'))
         
         prompt = self._format_reddit_prompt(snippets, ids, urls)
-        logger.info("Sending batch Reddit prompt to Claude")
+        logger.info("Sending batch Reddit prompt")
         
         response = self.llm.predict(prompt)
         logger.debug(f"Raw response (first 100 chars): {response[:100]}...")

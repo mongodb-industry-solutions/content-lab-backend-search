@@ -23,6 +23,10 @@ praw = "^7.8.1"
 nltk = "^3.9.1"
 spacy = "^3.8.7"
 scheduler = "^0.8.8"
+langchain-community = "^0.3.27"
+ddgs = "^9.0.0"
+langchain-tavily = "^0.2.7"
+
 
 
 [build-system]

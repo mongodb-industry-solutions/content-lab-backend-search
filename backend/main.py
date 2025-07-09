@@ -13,9 +13,12 @@ from dotenv import load_dotenv
 from typing import Optional, List
 from pydantic import BaseModel
 
-from test_embeddings import convert_query_to_embedding, search_similar_content
+from embeddings.test_embeddings import convert_query_to_embedding, search_similar_content
 from bedrock.llm_output import ContentAnalyzer
 from db.mdb import MongoDBConnector
+from langchain_tavily import TavilySearch
+from pydantic import BaseModel
+from drafts.related_info import get_related_info
 
 load_dotenv()
 

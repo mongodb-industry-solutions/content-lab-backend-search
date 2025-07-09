@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
 from bedrock.cohere_embeddings import BedrockCohereEnglishEmbeddings
 from _vector_search_idx_creator import VectorSearchIDXCreator
-from process_embeddings import ContentEmbedder
+from embeddings.process_embeddings import ContentEmbedder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,7 +26,7 @@ class SnippetGenerator:
     Using the News and Reddit results to generate concise snippets.
     """
 
-    def __init__(self, max_sentences: int = 3, max_comments: int = 4):
+    def __init__(self, max_sentences: int = 2, max_comments: int = 3):
         self.max_sentences = max_sentences
         self.max_comments = max_comments
 
@@ -116,7 +116,7 @@ def search_similar_content(query_embedding, limit: int = 5):
                     "queryVector": query_embedding,
                     "path": "embedding",
                     "limit": limit,
-                    "numCandidates": limit * 5
+                    "numCandidates": limit * 4
                 }
             },
             {
