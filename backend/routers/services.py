@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-
 from embeddings.test_embeddings import convert_query_to_embedding, search_similar_content
 from bedrock.llm_output import ContentAnalyzer
 from db.mdb import MongoDBConnector
@@ -19,6 +18,7 @@ db = MongoDBConnector()
 class SearchRequest(BaseModel):
     query: str
     limit: int = 5
+    label: Optional[str] = None
 
 class TopicRequest(BaseModel):
     topic: str
@@ -30,7 +30,7 @@ async def analyze_content(request: SearchRequest):
     """
     try:
         analyzer = ContentAnalyzer()
-        results = analyzer.analyze_and_store_search_results(request.query, db)
+        results = analyzer.analyze_and_store_search_results(request.query, db, request.label)
         
         return {
             "query": request.query,

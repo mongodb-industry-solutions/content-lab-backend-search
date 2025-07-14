@@ -314,7 +314,7 @@ class ContentAnalyzer:
             return {"news": 0, "reddit": 0}
 
 
-    def analyze_and_store_search_results(self, query: str, db_connector: MongoDBConnector) -> Dict[str, Any]:
+    def analyze_and_store_search_results(self, query: str, db_connector: MongoDBConnector, label: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze search results for a query and store them in the database.
         """
@@ -323,12 +323,16 @@ class ContentAnalyzer:
         
         # Split them back for storage
         suggested_results = {
-            "news": [item for item in result["suggestions"] if item.get("source_type") == "news"],
-            "reddit": [item for item in result["suggestions"] if item.get("source_type") == "reddit"]
+            "news": [item for item in result["suggestions"] if item.get("source_type") == "news" and (not label or item.get("label") == label)],
+            "reddit": [item for item in result["suggestions"] if item.get("source_type") == "reddit" and (not label or item.get("label") == label)]
         }
         
         # Store results in MongoDB
         storage_counts = self.store_analysis(db_connector, suggested_results, query)
+
+        # Filter results based on label
+        if label:
+            result["suggestions"] = [item for item in result["suggestions"] if item.get("label") == label]
         
         return {
             "analysis": result["suggestions"],  # Return combined list

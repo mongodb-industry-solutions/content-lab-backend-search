@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
 
 from db.mdb import MongoDBConnector
@@ -20,6 +20,7 @@ class DraftRequest(BaseModel):
     title: str
     category: str
     content: str
+    keywords: Optional[List[str]] = None
     topicId: Optional[str] = None
 
 @router.get("")
@@ -110,6 +111,7 @@ async def save_draft(
             "title": request.title,
             "category": request.category,
             "content": request.content,
+            "keywords": request.keywords,
             "topicId": request.topicId,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
@@ -142,6 +144,7 @@ async def update_draft(
             "title": request.title,
             "category": request.category,
             "content": request.content,
+            "keywords": request.keywords,
             "topicId": request.topicId,
             "updated_at": datetime.utcnow()
         }
