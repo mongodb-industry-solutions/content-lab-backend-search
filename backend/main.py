@@ -60,7 +60,6 @@ async def read_root(request: Request):
     return {"message":"Server is running"}
 
 
-
 @app.post("/api/analyze")
 async def analyze_content(request: SearchRequest):
     """

@@ -1,17 +1,19 @@
 # data_scheduler.py
 
-# This script schedules the scraping of news articles and social media posts,
+# This script schedules the scraping of news articles and Reddit posts,
 # processes the scraped content, and stores it in a MongoDB database.
 
 import os
 import sys
+import time
 import logging
+import random
 from datetime import datetime, timedelta
 from scheduler import Scheduler
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scrapers.news_scraper import NewsAPIScraper, NEWS_CATEGORIES
-from scrapers.social_listening import RedditScraper, SUBREDDITS
+from scrapers.social_listening import RedditScraper, SUBREDDIT_TOPICS
 from db.mdb import MongoDBConnector
 from embeddings.process_embeddings import ContentEmbedder
 from bedrock.llm_output import ContentAnalyzer
@@ -21,11 +23,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("scraper_scheduler.log"),
-        logging.StreamHandler()
+        logging.StreamHandler()  
     ]
 )
 logger = logging.getLogger("ScraperScheduler")
+
+db_connector = MongoDBConnector()
 
 # Scheduler verification function
 def log_scheduler_status():
@@ -44,22 +47,21 @@ def run_news_scraper():
     """Run the news scraper to collect articles from the categories."""
     logger.info(f"Starting news scraper job at {datetime.now()}")
     try:
-        db_connector = MongoDBConnector()
+        # Use global db_connector instead of creating a new one
         newsapi_scraper = NewsAPIScraper()
         total_articles = newsapi_scraper.run_for_multiple_categories(NEWS_CATEGORIES, db_connector)
         logger.info(f"News scraper completed for {len(NEWS_CATEGORIES)} categories: {NEWS_CATEGORIES}")
         logger.info(f"Total articles scraped: {total_articles}")
     except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
+        logger.error(f"Error in news scraper job: {e}")
 
 
 def run_reddit_scraper():
-    """Run the Reddit scraper to collect posts from the subreddits."""
+    """Run the Reddit scraper to collect posts from the SUBREDDIT_TOPICS."""
     logger.info(f"Starting Reddit scraper job at {datetime.now()}")
     try:
-        db_connector = MongoDBConnector()
         total_count = 0
-        for subreddit in SUBREDDITS:
+        for subreddit in SUBREDDIT_TOPICS:
             try:
                 count = RedditScraper(subreddit=subreddit).store(db_connector)
                 total_count += count
@@ -75,13 +77,11 @@ def process_embeddings():
     start_time = datetime.now()
     logger.info(f"Starting embeddings processing job at {start_time}")
     try:
-        db_connector = MongoDBConnector()
-        # Check document counts before processing
         news_without_embeddings = db_connector.get_collection("news").count_documents({"embedding": {"$exists": False}})
         reddit_without_embeddings = db_connector.get_collection("reddit_posts").count_documents({"embedding": {"$exists": False}})
         logger.info(f"Found {news_without_embeddings} news articles and {reddit_without_embeddings} Reddit posts without embeddings")
         
-        embedder = ContentEmbedder(batch_size=20)
+        embedder = ContentEmbedder(batch_size=20, db_connector=db_connector)
         news_count = embedder.process_news_embeddings()
         reddit_count = embedder.process_reddit_embeddings()
         
@@ -91,6 +91,19 @@ def process_embeddings():
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
 
+def generate_targeted_query(subreddit):
+    """Generate a more targeted and specific query for a subreddit"""
+    if subreddit in SUBREDDIT_TOPICS:
+        # Pick 1-2 random topics for this subreddit to keep queries diverse
+        topics = SUBREDDIT_TOPICS[subreddit]
+        selected_topics = random.sample(topics, min(2, len(topics)))
+        
+        # Create a more specific query
+        query = f"Trending discussions about {' and '.join(selected_topics)} in r/{subreddit}"
+        return query
+    
+    # Fallback to the default query style if subreddit not in our topics list
+    return f"Current discussions in r/{subreddit}"
 
 def generate_content_suggestions():
     """
@@ -98,7 +111,7 @@ def generate_content_suggestions():
     """
     logger.info(f"Starting content suggestion generation job at {datetime.now()}")
     try: 
-        db_connector = MongoDBConnector()
+        # Use global db_connector instead of creating a new one
         analyzer = ContentAnalyzer()
         
         # stats
@@ -116,14 +129,15 @@ def generate_content_suggestions():
             except Exception as e:
                 logger.error(f"Error generating suggestions for news category {category}: {e}")
         
-        # Process subreddits
-        for subreddit in SUBREDDITS:
-            query = f"Current discussions in r/{subreddit}"
+        # Process subreddits with improved targeted queries
+        for subreddit in SUBREDDIT_TOPICS:
+            # Use the targeted query generator
+            query = generate_targeted_query(subreddit)
             try:
                 results = analyzer.analyze_and_store_search_results(query, db_connector)
                 subreddit_count = sum(results['stored'].values())
                 suggestions_generated += subreddit_count
-                logger.info(f"Generated {subreddit_count} suggestions for subreddit: {subreddit}")
+                logger.info(f"Generated {subreddit_count} suggestions for subreddit: {subreddit} using query: {query}")
             except Exception as e:
                 logger.error(f"Error generating suggestions for subreddit {subreddit}: {e}")
         
@@ -145,6 +159,7 @@ def generate_content_suggestions():
         logger.error(f"Error in content suggestion job: {e}")
 
 
+# Create scheduler instance
 scheduler = Scheduler()
 
 # Schedule the jobs
@@ -161,20 +176,31 @@ scheduler.daily(datetime.strptime("14:00", "%H:%M").time(), process_embeddings)
 # content suggestion generator runs at 3 PM daily (after we process our embeddings)
 scheduler.daily(datetime.strptime("15:00", "%H:%M").time(), generate_content_suggestions)
 
-# Add scheduler status check every 2 hours
+# Add scheduler status check every 4 hours
 for hour in range(0, 24, 4):
     scheduler.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
 
 if __name__ == "__main__":
     logger.info(f"Starting data scraper scheduler at {datetime.now()}")
     try:
+        # Test MongoDB connection before starting
+        logger.info("Testing MongoDB connection...")
+        db_connector.get_collection("test").find_one()
+        logger.info("MongoDB connection successful")
+        
         # Initial status display
         log_scheduler_status()
         
-        # Run the scheduler
-        print(scheduler)
-    except KeyboardInterrupt:
-        logger.info("Scheduler stopped by user")
+        # Print scheduler overview
+        logger.info(f"Scheduler overview: {scheduler}")
+        
+        # Run the scheduler in a continuous loop
+        logger.info("Scheduler is now running...")
+        while True:
+            scheduler.exec_jobs()
+            time.sleep(1)
     except Exception as e:
         logger.error(f"Scheduler error: {e}")
-
+        if "MongoDB" in str(e):
+            logger.error("Failed to connect to MongoDB. Please check your connection settings.")
+        sys.exit(1)

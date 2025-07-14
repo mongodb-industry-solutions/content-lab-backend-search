@@ -12,14 +12,14 @@ logger = logging.getLogger("Test")
 if __name__ == "__main__":
 
     logger.info("Testing news scraper...")
-    #run_news_scraper()
+    # run_news_scraper()
     logger.info("Testing Reddit scraper...")
-    #run_reddit_scraper()
+    # run_reddit_scraper()
     
     logger.info("Testing embedding processor...")
-    process_embeddings()
+    # process_embeddings()
 
     logger.info("Testing content suggestions...")
-    generate_content_suggestions()
+    # generate_content_suggestions()
     
     logger.info("Test completed")
