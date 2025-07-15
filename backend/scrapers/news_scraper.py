@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 # News_Categories Global Variable
 
-NEWS_CATEGORIES = ["spain", "technology", "health", "sports", "politics",
-               "science", "business", "entertainment", "travel", "education"]
+NEWS_CATEGORIES = ["technology", "health", "sports", "politics",
+               "science", "business", "entertainment", "general"]
 
 
 # ---------1. Abstract base class for news scrapers---------    

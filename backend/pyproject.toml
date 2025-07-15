@@ -26,6 +26,7 @@ scheduler = "^0.8.8"
 langchain-community = "^0.3.27"
 ddgs = "^9.0.0"
 langchain-tavily = "^0.2.7"
+pytz = "^2025.2"
 
 
 

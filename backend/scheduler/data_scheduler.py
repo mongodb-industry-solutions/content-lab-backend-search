@@ -8,8 +8,10 @@ import sys
 import time
 import logging
 import random
+import datetime as dt
 from datetime import datetime, timedelta
 from scheduler import Scheduler
+import scheduler.trigger as trigger
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scrapers.news_scraper import NewsAPIScraper, NEWS_CATEGORIES
@@ -17,6 +19,8 @@ from scrapers.social_listening import RedditScraper, SUBREDDIT_TOPICS
 from db.mdb import MongoDBConnector
 from embeddings.process_embeddings import ContentEmbedder
 from bedrock.llm_output import ContentAnalyzer
+import pytz
+from bson import ObjectId
 
 # Configure logging
 logging.basicConfig(
@@ -30,174 +34,272 @@ logger = logging.getLogger("ScraperScheduler")
 
 db_connector = MongoDBConnector()
 
-# Scheduler verification function
+
+# ------ 1. Cleanup Utilities ------
+
+# a. Enforce max documents in collections
+
+def enforce_max_docs(collection_name: str, max_docs: int = 100):
+    """Ensure no more than `max_docs` in the collection, we drop the oldest if necessary."""
+    coll = db_connector.get_collection(collection_name)
+    total = coll.count_documents({})
+    if total <= max_docs:
+        return
+    to_delete = total - max_docs
+    # find oldest docs by _id ascending
+    old_ids = coll.find({}, {"_id": 1}).sort("_id", 1).limit(to_delete)
+    ids_to_delete = [doc["_id"] for doc in old_ids]
+    try:
+        res = coll.delete_many({"_id": {"$in": ids_to_delete}})
+        logger.info(
+            f"Enforced max {max_docs} docs on '{collection_name}': removed {res.deleted_count} oldest"
+        )
+    except Exception as e:
+        logger.error(f"Error enforcing max docs for '{collection_name}': {e}")
+
+
+def cleanup_suggestions(retention_days: int = 14, max_docs: int = 100):
+    """Remove old content suggestions but keep at least max_docs in the collection."""
+    coll = db_connector.get_collection("suggestions")
+    total = coll.count_documents({})
+    if total <= max_docs:
+        logger.info(
+            f"Skipping suggestions cleanup: "
+            f"{total} suggestions ≤ minimum ({max_docs})"
+        )
+        return
+
+    cutoff = datetime.now(pytz.UTC) - timedelta(days=retention_days)
+    cutoff_oid = ObjectId.from_datetime(cutoff)
+
+    old_cursor = coll.find(
+        {"analyzed_at": {"$lt": cutoff}},
+        {"_id": 1}
+    ).sort("analyzed_at", 1)
+    old_ids = [doc["_id"] for doc in old_cursor]
+    older_count = len(old_ids)
+
+    can_delete = min(older_count, total - max_docs)
+    if can_delete <= 0:
+        logger.info(
+            "No suggestions removed: "
+            "would drop below minimum count"
+        )
+        return
+
+    try:
+        res = coll.delete_many({"_id": {"$in": old_ids[:can_delete]}})
+        logger.info(
+            f"Removed {res.deleted_count} suggestions older than "
+            f"{retention_days}d"
+        )
+    except Exception as e:
+        logger.error(f"Error removing old suggestions: {e}")
+
+def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: int = 100):
+    """Remove up to (total - max_docs) docs older than retention_days, but never drop below max_docs."""
+    coll = db_connector.get_collection(collection_name)
+    total = coll.count_documents({})
+    if total <= max_docs:
+        logger.info(
+            f"Skipping retention cleanup for '{collection_name}': "
+            f"total docs ({total}) ≤ minimum ({max_docs})"
+        )
+        return
+
+    cutoff = datetime.now(pytz.UTC) - timedelta(days=retention_days)
+    cutoff_oid = ObjectId.from_datetime(cutoff)
+
+    # Find all docs older than cutoff, sorted oldest first
+    old_cursor = coll.find(
+        {"_id": {"$lt": cutoff_oid}},
+        {"_id": 1}
+    ).sort("_id", 1)
+    old_ids = [doc["_id"] for doc in old_cursor]
+    older_count = len(old_ids)
+
+    # Compute how many we can safely delete without dropping below max_docs
+    can_delete = min(older_count, total - max_docs)
+    if can_delete <= 0:
+        logger.info(
+            f"No documents deleted from '{collection_name}': "
+            "deletion would drop below minimum"
+        )
+        return
+
+    ids_to_delete = old_ids[:can_delete]
+    try:
+        res = coll.delete_many({"_id": {"$in": ids_to_delete}})
+        logger.info(
+            f"Removed {res.deleted_count} docs older than "
+            f"{retention_days}d from '{collection_name}'"
+        )
+    except Exception as e:
+        logger.error(f"Error cleaning up '{collection_name}': {e}")
+
+
+# -------- 2. Scheduler verification function --------
+
 def log_scheduler_status():
     """Log the scheduler status and upcoming tasks"""
-    logger.info(f"Scheduler heartbeat at {datetime.now()}")
-    logger.info(f"Upcoming tasks:")
-    logger.info(f"- News scraper: daily at 13:00")
-    logger.info(f"- Reddit scraper: daily at 13:30")
-    logger.info(f"- Embedding processor: daily at 14:00")
-    logger.info(f"- Content suggestion generator: daily at 15:00")
-    logger.info(f"- Status checks: every 4 hours (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)")
+    now = datetime.now(pytz.UTC)
+    logger.info(f"Scheduler heartbeat at {now.isoformat()}")
+    logger.info("Upcoming tasks:")
+    logger.info("- News scraper: daily at  UTC")
+    logger.info("- Reddit scraper: daily at 11:35 UTC")
+    logger.info("- Embedding processor: daily at 11:35 UTC")
+    logger.info("- Content suggestion generator: daily at 11:40 UTC")
+    logger.info("- Cleanup tasks: immediately after each job")
+    logger.info("- Status checks: every 4 hours (00:00, 04:00, … UTC)")
 
-# Scraper Jobs
+# ------ 3. Scraper Jobs ---------   
+
+# a. News Scraper Job
 
 def run_news_scraper():
     """Run the news scraper to collect articles from the categories."""
-    logger.info(f"Starting news scraper job at {datetime.now()}")
+    now = datetime.now(pytz.UTC)
+    logger.info(f"Starting news scraper job at {now.isoformat()}")
     try:
-        # Use global db_connector instead of creating a new one
         newsapi_scraper = NewsAPIScraper()
         total_articles = newsapi_scraper.run_for_multiple_categories(NEWS_CATEGORIES, db_connector)
-        logger.info(f"News scraper completed for {len(NEWS_CATEGORIES)} categories: {NEWS_CATEGORIES}")
-        logger.info(f"Total articles scraped: {total_articles}")
+        logger.info(f"News scraper completed: {total_articles} articles from {len(NEWS_CATEGORIES)} categories")
     except Exception as e:
         logger.error(f"Error in news scraper job: {e}")
+    # cleanup old news
+    cleanup_generic("news")
 
+# b. Reddit Scraper Job
 
 def run_reddit_scraper():
     """Run the Reddit scraper to collect posts from the SUBREDDIT_TOPICS."""
-    logger.info(f"Starting Reddit scraper job at {datetime.now()}")
-    try:
-        total_count = 0
-        for subreddit in SUBREDDIT_TOPICS:
-            try:
-                count = RedditScraper(subreddit=subreddit).store(db_connector)
-                total_count += count
-                logger.info(f"Scraped {count} posts from r/{subreddit}")
-            except Exception as e:
-                logger.error(f"Error scraping subreddit {subreddit}: {e}")
-        logger.info(f"Reddit scraper completed: {total_count} total posts scraped")
-    except Exception as e:
-        logger.error(f"Error in Reddit scraper job: {e}")
+    now = datetime.now(pytz.UTC)
+    logger.info(f"Starting Reddit scraper job at {now.isoformat()}")
+    total_count = 0
+    for subreddit in SUBREDDIT_TOPICS:
+        try:
+            count = RedditScraper(subreddit=subreddit).store(db_connector)
+            total_count += count
+            logger.info(f"Scraped {count} posts from r/{subreddit}")
+        except Exception as e:
+            logger.error(f"Error scraping subreddit {subreddit}: {e}")
+    logger.info(f"Reddit scraper completed: {total_count} total posts")
+    # cleanup old reddit posts
+    cleanup_generic("reddit_posts")
+
+# c. Embedding Processor Job
 
 def process_embeddings():
-    """Process embeddings for newly scraped content."""
-    start_time = datetime.now()
-    logger.info(f"Starting embeddings processing job at {start_time}")
+    """Process the embeddings for newly scraped content."""
+    start_time = datetime.now(pytz.UTC)
+    logger.info(f"Starting embeddings processing job at {start_time.isoformat()}")
     try:
-        news_without_embeddings = db_connector.get_collection("news").count_documents({"embedding": {"$exists": False}})
-        reddit_without_embeddings = db_connector.get_collection("reddit_posts").count_documents({"embedding": {"$exists": False}})
-        logger.info(f"Found {news_without_embeddings} news articles and {reddit_without_embeddings} Reddit posts without embeddings")
-        
-        embedder = ContentEmbedder(batch_size=20, db_connector=db_connector)
+        news_without = db_connector.get_collection("news").count_documents({"embedding": {"$exists": False}})
+        reddit_without = db_connector.get_collection("reddit_posts").count_documents({"embedding": {"$exists": False}})
+        logger.info(f"Found {news_without} news & {reddit_without} Reddit without embeddings")
+
+        embedder = ContentEmbedder(batch_size=20)
         news_count = embedder.process_news_embeddings()
         reddit_count = embedder.process_reddit_embeddings()
-        
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        logger.info(f"Embeddings processing completed in {duration} seconds. Processed {news_count} news articles and {reddit_count} Reddit posts")
+        duration = (datetime.now(pytz.UTC) - start_time).total_seconds()
+        logger.info(f"Embeddings done in {duration}s: {news_count} news & {reddit_count} reddit")
+
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
 
+
+# ------ 4. Targeted Queries --------- 
+
 def generate_targeted_query(subreddit):
-    """Generate a more targeted and specific query for a subreddit"""
+    """Generate a more targeted and specific query for a subreddit."""
     if subreddit in SUBREDDIT_TOPICS:
-        # Pick 1-2 random topics for this subreddit to keep queries diverse
         topics = SUBREDDIT_TOPICS[subreddit]
-        selected_topics = random.sample(topics, min(2, len(topics)))
-        
-        # Create a more specific query
-        query = f"Trending discussions about {' and '.join(selected_topics)} in r/{subreddit}"
-        return query
-    
-    # Fallback to the default query style if subreddit not in our topics list
+        selected = random.sample(topics, min(2, len(topics)))
+        return f"Trending discussions about {' and '.join(selected)} in r/{subreddit}"
     return f"Current discussions in r/{subreddit}"
+
+
+# --------- 5. Content Suggestion Generation ---------
 
 def generate_content_suggestions():
     """
-    Give topic suggestions using LLMs for each news and subreddit category.
+    Give topic suggestions using LLMs for each news and subreddit category,
+    then clean up old suggestions and enforce limits.
     """
-    logger.info(f"Starting content suggestion generation job at {datetime.now()}")
-    try: 
-        # Use global db_connector instead of creating a new one
-        analyzer = ContentAnalyzer()
-        
-        # stats
-        suggestions_generated = 0
-        suggestions_removed = 0
+    start = datetime.now(pytz.UTC)
+    logger.info(f"Starting content suggestion job at {start.isoformat()}")
+    analyzer = ContentAnalyzer()
+    total_generated = 0
 
-        # Process news articles
-        for category in NEWS_CATEGORIES:
-            query = f"Latest {category} news and developments"
-            try:
-                results = analyzer.analyze_and_store_search_results(query, db_connector)
-                category_count = sum(results['stored'].values())
-                suggestions_generated += category_count
-                logger.info(f"Generated {category_count} suggestions for news category: {category}")
-            except Exception as e:
-                logger.error(f"Error generating suggestions for news category {category}: {e}")
-        
-        # Process subreddits with improved targeted queries
-        for subreddit in SUBREDDIT_TOPICS:
-            # Use the targeted query generator
-            query = generate_targeted_query(subreddit)
-            try:
-                results = analyzer.analyze_and_store_search_results(query, db_connector)
-                subreddit_count = sum(results['stored'].values())
-                suggestions_generated += subreddit_count
-                logger.info(f"Generated {subreddit_count} suggestions for subreddit: {subreddit} using query: {query}")
-            except Exception as e:
-                logger.error(f"Error generating suggestions for subreddit {subreddit}: {e}")
-        
-        # Remove old suggestions 
-        retention_days = 14
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+    # news categories
+    for category in NEWS_CATEGORIES:
         try:
-            result = db_connector.delete_many(
-                "suggestions", 
-                {"analyzed_at": {"$lt": cutoff_date}}
+            results = analyzer.analyze_and_store_search_results(
+                f"Latest {category} news and developments", db_connector
             )
-            suggestions_removed = result.deleted_count if hasattr(result, 'deleted_count') else 0
-            logger.info(f"Removed {suggestions_removed} suggestions older than {retention_days} days")
+            count = sum(results["stored"].values())
+            total_generated += count
+            logger.info(f"Generated {count} suggestions for news category '{category}'")
         except Exception as e:
-            logger.error(f"Error removing old suggestions: {e}")
-        
-        logger.info(f"Content suggestion job completed. Generated: {suggestions_generated}, Removed: {suggestions_removed}")
-    except Exception as e:
-        logger.error(f"Error in content suggestion job: {e}")
+            logger.error(f"Error suggestions for news '{category}': {e}")
 
+    # subreddit categories
+    for subreddit in SUBREDDIT_TOPICS:
+        q = generate_targeted_query(subreddit)
+        try:
+            results = analyzer.analyze_and_store_search_results(q, db_connector)
+            count = sum(results["stored"].values())
+            total_generated += count
+            logger.info(f"Generated {count} suggestions for r/{subreddit}")
+        except Exception as e:
+            logger.error(f"Error suggestions for r/{subreddit}: {e}")
 
-# Create scheduler instance
-scheduler = Scheduler()
+    # cleanup old suggestions + enforce cap
+    cleanup_suggestions()
 
-# Schedule the jobs
+    end = datetime.now(pytz.UTC)
+    logger.info(f"Content suggestions done in {(end - start).total_seconds()}s: generated {total_generated}")
 
-# news scraper runs at 1 PM daily
-scheduler.daily(datetime.strptime("13:00", "%H:%M").time(), run_news_scraper)
+# Scheduler setup
 
-# reddit scraper runs at 1.30 PM daily
-scheduler.daily(datetime.strptime("13:30", "%H:%M").time(), run_reddit_scraper)
+schedule = Scheduler()
 
-# embedding processor runs at 2 PM daily
-scheduler.daily(datetime.strptime("14:00", "%H:%M").time(), process_embeddings)
+# news scraper runs at 11:28 UTC daily
+schedule.daily(datetime.strptime("15:45", "%H:%M").time(), run_news_scraper)
 
-# content suggestion generator runs at 3 PM daily (after we process our embeddings)
-scheduler.daily(datetime.strptime("15:00", "%H:%M").time(), generate_content_suggestions)
+# reddit scraper runs at 11:35 UTC daily
+schedule.daily(datetime.strptime("15:55", "%H:%M").time(), run_reddit_scraper)
 
-# Add scheduler status check every 4 hours
+# embedding processor
+schedule.daily(datetime.strptime("16:03", "%H:%M").time(), process_embeddings)
+
+# content suggestion generator 
+schedule.daily(datetime.strptime("16:05", "%H:%M").time(), generate_content_suggestions)
+
+# status checks every 4 hours
 for hour in range(0, 24, 4):
-    scheduler.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
+    schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
+
+def test_scheduler_job():
+    now = datetime.now(pytz.UTC)
+    logger.info(f"Test scheduler job triggered at {now.isoformat()}")
+
+# Schedule the test job to run every minute
+schedule.minutely(dt.time(second=0), test_scheduler_job)
 
 if __name__ == "__main__":
-    logger.info(f"Starting data scraper scheduler at {datetime.now()}")
+    start = datetime.now(pytz.UTC)
+    logger.info(f"Starting data scraper scheduler at {start.isoformat()}")
     try:
-        # Test MongoDB connection before starting
-        logger.info("Testing MongoDB connection...")
+        # Test MongoDB connection
         db_connector.get_collection("test").find_one()
         logger.info("MongoDB connection successful")
-        
-        # Initial status display
+
         log_scheduler_status()
-        
-        # Print scheduler overview
-        logger.info(f"Scheduler overview: {scheduler}")
-        
-        # Run the scheduler in a continuous loop
-        logger.info("Scheduler is now running...")
+        logger.info(f"Scheduler overview: {schedule}")
+
         while True:
-            scheduler.exec_jobs()
+            schedule.exec_jobs()
             time.sleep(1)
     except Exception as e:
         logger.error(f"Scheduler error: {e}")
