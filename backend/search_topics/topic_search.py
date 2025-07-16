@@ -12,57 +12,71 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-API_KEYS = os.getenv("TAVILY_API_KEYS", "").split(",")
 
-def _invoke_with_key(key: str, query: str, max_results: int):
+def search_topic(topic, max_results: int = 4) -> dict:
     """
-    Try one key—returns parsed results or raises.
+    Search for recent updates related to a specific topic using Tavily.
+    
+    Args:
+        topic (str): The topic to search for
+        max_results (int): Maximum number of results to return
+    
+    Returns:
+        dict: JSON-formatted search results
     """
-    # temporarily override the env var that TavilySearch will pick up
-    os.environ["TAVILY_API_KEY"] = key.strip()
-    logger.debug(f"Using Tavily key: {key.strip()[:6]}…")
-    search_tool = TavilySearch(max_results=max_results)
-    raw = search_tool.invoke({"query": query})
-    return json.loads(raw) if isinstance(raw, str) else raw
-
-def search_topic(topic: str, max_results: int = 4) -> dict:
+    # Format query to get recent updates on the topic
     query = f"what are the recent updates on {topic}"
     logger.info(f"Searching with query: '{query}'")
-
-    last_error = None
-    for key in API_KEYS:
-        if not key:
-            continue
-        try:
-            parsed = _invoke_with_key(key, query, max_results)
-            # success!
-            results = parsed.get("results", [])
-            return {
-                "topic": topic,
-                "query": query,
-                "result_count": len(results),
-                "results": [
-                    {
-                        "title": r.get("title", "No Title"),
-                        "snippet": (r.get("content", "")[:300] + "..."),
-                        "url": r.get("url", "")
-                    }
-                    for r in results
-                ]
-            }
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Key {key.strip()[:6]}… failed, trying next: {e}")
-
-    # if we get here, all keys failed
-    logger.error(f"All API keys exhausted or invalid: {last_error}")
-    return {
-        "topic": topic,
-        "query": query,
-        "error": str(last_error),
-        "results": []
-    }
+    
+    try:
+        # Initialize Tavily search tool
+        search_tool = TavilySearch(max_results=max_results)
+        
+        # Use Tavily to search with the formatted query
+        raw_results = search_tool.invoke({"query": query})
+        
+        # Parse the response - TavilySearch returns either a string or dict
+        if isinstance(raw_results, str):
+            parsed_results = json.loads(raw_results)
+        else:
+            parsed_results = raw_results
+            
+        # Extract the results list
+        results_list = parsed_results.get("results", [])
+        
+        # Format the results to ensure consistent structure
+        formatted_results = []
+        for result in results_list:
+            formatted_results.append({
+                "title": result.get("title", "No Title"),
+                "snippet": result.get("content", "No Content")[:300] + "...", # Truncate for readability
+                "url": result.get("url", "No URL")
+            })
+        
+        # Create response object
+        response = {
+            "topic": topic,
+            "query": query,
+            "result_count": len(formatted_results),
+            "results": formatted_results
+        }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error searching for topic '{topic}': {str(e)}")
+        logger.exception("Detailed exception")
+        return {
+            "topic": topic,
+            "query": query,
+            "error": str(e),
+            "results": []
+        }
 
 if __name__ == "__main__":
-    example = "renewable energy technologies"
-    print(json.dumps(search_topic(example), indent=2))
+    # Example topic - this would come from the frontend in actual use
+    example_topic = "renewable energy technologies"
+    results = search_topic(example_topic)
+    
+    # Print results as formatted JSON
+    print(json.dumps(results, indent=2))

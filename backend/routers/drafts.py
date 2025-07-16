@@ -165,3 +165,23 @@ async def update_draft(
         return updated_draft
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
+    
+@router.delete("/{draft_id}")
+async def delete_draft(
+    draft_id: str,
+    userId: str
+):
+    """
+    Delete a draft document by ID and userId
+    """
+    try:
+        collection = db.get_collection("drafts")
+        result = collection.delete_one({
+            "_id": ObjectId(draft_id),
+            "userId": userId
+        })
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Draft not found or access denied")
+        return {"message": "Draft deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
