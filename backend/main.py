@@ -1,11 +1,14 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import threading
 from dotenv import load_dotenv
 
 from routers.drafts import router as drafts_router
 from routers.content import router as content_router
 from routers.services import router as services_router
+from routers.scheduler import router as scheduler_router
+from scheduler_job.data_scheduler import schedule
 
 load_dotenv()
 
@@ -25,6 +28,26 @@ app.add_middleware(
 app.include_router(drafts_router)
 app.include_router(content_router)
 app.include_router(services_router)
+app.include_router(scheduler_router)
+
+
+def run_scheduler():
+    """Run the scheduler in a separate thread"""
+    logger.info("Starting scheduler thread")
+    
+    # Display scheduler overview on startup
+    logger.info("Scheduler Overview:")
+    logger.info(str(schedule))
+    
+    import time
+    while True:
+        
+        schedule.exec_jobs()
+        time.sleep(1)
+
+
+scheduler_thread = threading.Thread(target=run_scheduler)
+scheduler_thread.start()
 
 @app.get("/")
 async def read_root(request: Request):
