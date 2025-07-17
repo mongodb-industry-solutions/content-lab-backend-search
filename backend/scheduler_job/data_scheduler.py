@@ -145,10 +145,10 @@ def log_scheduler_status():
     now = datetime.now(pytz.UTC)
     logger.info(f"Scheduler heartbeat at {now.isoformat()}")
     logger.info("Upcoming tasks:")
-    logger.info("- News scraper: daily at  UTC")
-    logger.info("- Reddit scraper: daily at 11:35 UTC")
-    logger.info("- Embedding processor: daily at 11:35 UTC")
-    logger.info("- Content suggestion generator: daily at 11:40 UTC")
+    logger.info("- News scraper: daily at 04:00  UTC")
+    logger.info("- Reddit scraper: daily at 04:15 UTC")
+    logger.info("- Embedding processor: daily at 04:30 UTC")
+    logger.info("- Content suggestion generator: daily at 04:45 UTC")
     logger.info("- Cleanup tasks: immediately after each job")
     logger.info("- Status checks: every 4 hours (00:00, 04:00, … UTC)")
 
@@ -264,17 +264,17 @@ def generate_content_suggestions():
 
 schedule = Scheduler()
 
-# news scraper runs at 11:28 UTC daily
-schedule.daily(datetime.strptime("15:45", "%H:%M").time(), run_news_scraper)
+# news scraper runs
+schedule.daily(datetime.strptime("04:00", "%H:%M").time(), run_news_scraper)
 
-# reddit scraper runs at 11:35 UTC daily
-schedule.daily(datetime.strptime("15:55", "%H:%M").time(), run_reddit_scraper)
+# reddit scraper runs 
+schedule.daily(datetime.strptime("04:15", "%H:%M").time(), run_reddit_scraper)
 
 # embedding processor
-schedule.daily(datetime.strptime("16:03", "%H:%M").time(), process_embeddings)
+schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
 
 # content suggestion generator 
-schedule.daily(datetime.strptime("16:05", "%H:%M").time(), generate_content_suggestions)
+schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
 
 # status checks every 4 hours
 for hour in range(0, 24, 4):
@@ -284,8 +284,8 @@ def test_scheduler_job():
     now = datetime.now(pytz.UTC)
     logger.info(f"Test scheduler job triggered at {now.isoformat()}")
 
-# Schedule the test job to run every minute
-schedule.minutely(dt.time(second=0), test_scheduler_job)
+# Schedule the test job to run every hour
+schedule.hourly(dt.time(minute=0, second=0), test_scheduler_job)
 
 if __name__ == "__main__":
     start = datetime.now(pytz.UTC)
