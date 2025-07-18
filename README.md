@@ -6,6 +6,27 @@ This repository hosts the backend for the ContentLab - Automated Content Analysi
 
 [High level architecture diagram here use [google slides](https://docs.google.com/presentation/d/1vo8Y8mBrocJtzvZc_tkVHZTsVW_jGueyUl-BExmVUtI/edit#slide=id.g30c066974c7_0_3536)]
 
+## Architecture Overview
+
+This backend is designed as a microservice, focusing on automated content analysis, aggregation, and AI-powered suggestions. Each component is modular, enabling independent scaling, maintenance, and integration with other services.
+
+### Core Structure
+
+- **FastAPI Application:**  
+  The main entry point (`backend/main.py`) serves as the API gateway for all backend operations. It exposes REST endpoints for content retrieval, semantic search, user management, and AI-driven insights. FastAPI ensures high performance, automatic documentation, and easy integration with other microservices.
+
+- **Database Layer:**  
+  The MongoDB connector (`backend/db/mdb.py`) abstracts all database interactions. It manages connections, queries, and CRUD operations for collections such as `news`, `reddit_posts`, `suggestions`, `drafts`, and `userProfiles`. This layer ensures data consistency and scalability, supporting high-throughput ingestion and retrieval.
+
+- **API Routes:**  
+  Modular routers in `backend/routers/` separate concerns for different functionalities. Each router handles specific endpoints, making the codebase maintainable and extensible. This structure supports microservice best practices by isolating business logic.
+
+- **Background Processing:**  
+  Automated data collection is handled by schedulers and scrapers. These run as background jobs, ingesting news and social media data at scheduled intervals. This ensures the microservice remains up-to-date with the latest content without manual intervention.
+
+- **AI/ML Components:**  
+  Integration with AWS Bedrock enables advanced AI capabilities, such as semantic embeddings and content analysis. These components process raw data into actionable intelligence, supporting features like semantic search and automated suggestions.
+
 
 ## Key Features
 
@@ -51,6 +72,45 @@ This repository hosts the backend for the ContentLab - Automated Content Analysi
    semantic search.
   - [**Tavily Search API**](https://tavily.com/)
   for primary topic research and content discovery. 
+
+### Key Components
+
+#### API Endpoints (`backend/routers/`)
+
+- **Content Router (`content.py`):**  
+  Exposes endpoints for fetching content suggestions, news articles, Reddit posts, and user profiles. It acts as the main interface for clients to access aggregated and analyzed content.
+
+- **Drafts Router (`drafts.py`):**  
+  Provides CRUD operations for user-generated drafts. Supports user-specific access control, allowing secure creation, editing, and deletion of draft documents.
+
+- **Services Router (`services.py`):**  
+  Offers advanced service endpoints, such as topic research and AI-powered content analysis. Enables integration with external tools and APIs for enhanced functionality.
+
+
+#### Data Processing Pipeline
+
+- **News Scraper (`scrapers/news_scraper.py`):**  
+  Continuously collects articles from multiple news sources and categories. The scraper normalizes and stores articles in the database, preparing them for downstream processing and analysis.
+
+- **Reddit Scraper (`scrapers/social_listening.py`):**  
+  Monitors and scrapes posts from configured subreddits using the PRAW library. Extracted posts are mapped to relevant topics and stored for semantic analysis and search.
+
+- **Embedding Processor (`embeddings/process_embeddings.py`):**  
+  Transforms ingested news and Reddit content into high-dimensional vector embeddings using Cohere Embed English model via AWS Bedrock. These embeddings power semantic search and similarity matching across the microservice.
+
+- **Content Analyzer (`bedrock/llm_output.py`):**  
+  Utilizes Anthropic Claude models through AWS Bedrock to analyze and summarize content. Generates structured insights (topics, keywords, descriptions, labels) in JSON format, supporting automated suggestions and research.
+
+#### Scheduler (`scheduler/data_scheduler.py`)
+
+Automated daily jobs ensure the microservice remains current and efficient:
+- **News scraping at 15:45 UTC:** Ingests the latest news articles from configured sources.
+- **Reddit scraping at 15:55 UTC:** Collects new Reddit posts and comments for analysis.
+- **Embedding processing at 16:03 UTC:** Generates semantic embeddings for all newly ingested content.
+- **Content suggestion generation at 16:05 UTC:** Creates AI-powered suggestions based on analyzed data.
+- **Cleanup tasks:** Regularly prunes collections to maintain size limits and optimize performance.
+
++ This microservice architecture enables scalable, automated, and intelligent content analysis, making it ideal for integration into larger platforms or as a standalone backend for content-driven applications.
 
 ## Prerequisites
 
