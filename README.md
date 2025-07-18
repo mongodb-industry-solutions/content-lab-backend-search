@@ -30,7 +30,7 @@ This backend is designed as a microservice, focusing on automated content analys
 
 ## Key Features
 
-## Tech Stack
+### Tech Stack
 
 ### Web Framework & API
 - [**fastapi**](https://fastapi.tiangolo.com/) for API development and building REST endpoints.
