@@ -161,6 +161,5 @@ E.g. `http://localhost:8000/docs`
 
 ## Common errors
 
-### Backend
-
-- Check that you've created an `.env` file that contains your valid (and working) API keys, environment and index variables.
+> [!IMPORTANT]
+> Check that you've created an `.env` file that contains the required environment variables.
