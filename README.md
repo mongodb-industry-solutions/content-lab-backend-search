@@ -111,40 +111,53 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >REDDIT_USER_AGENT=your_reddit_user_agent
 > ```
 
-## Run it Locally
+## Running the Backend
 
-### Backend
+### Virtual Environment Setup with Poetry
 
-1. (Optional) Set your project description and author information in the `pyproject.toml` file:
-   ```toml
-   description = "Your Description"
-   authors = ["Your Name <you@example.com>"]
-2. Open the project in your preferred IDE (the standard for the team is Visual Studio Code).
-3. Open the Terminal within Visual Studio Code.
-4. Ensure you are in the root project directory where the `makefile` is located.
-5. Execute the following commands:
-  - Poetry start
-    ````bash
-    make poetry_start
-    ````
-  - Poetry install
-    ````bash
-    make poetry_install
-    ````
-6. Verify that the `.venv` folder has been generated within the `/backend` directory.
+1. Open a terminal in the project root directory.
+2. Run the following commands:
+   ```bash
+   make poetry_start
+   make poetry_install
+   ```
+3. Verify that the `.venv` folder has been generated within the `/backend` directory.
 
-## Run with Docker
+### Start the Backend
 
-Make sure to run this on the root directory.
+To start the backend service, run:
 
-1. To run with Docker use the following command:
+```bash
+poetry run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
+> Default port is `8000`, modify the `--port` flag if needed.
+
+## Running with Docker
+
+Run the following command in the root directory:
+
+```bash
 make build
 ```
-2. To delete the container and image run:
-```
+
+To remove the container and image:
+
+```bash
 make clean
 ```
+
+## API Documentation
+
+You can access the API documentation by visiting the following URL:
+
+```
+http://localhost:<PORT_NUMBER>/docs
+```
+E.g. `http://localhost:8000/docs`
+
+> [!NOTE]
+> Make sure to replace `<PORT_NUMBER>` with the port number you are using and ensure the backend is running.
 
 ## Common errors
 
