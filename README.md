@@ -1,16 +1,16 @@
 # **Content Lab - Automated Content Analysis & Suggestion Engine**
 
-This repository hosts the backend for the ContentLab - Automated Content Analysis & Suggestion Engine service. The service uses FastAPI to deliver smart content insights, including semantic search, automated content aggregation, and AI-generated insights. It uses MongoDB for scalable storage and vector search, with scheduled jobs for continuous data ingestion and analysis. Designed for content creators and analysts, it transforms raw news and social media data into actionable, searchable intelligence.
+This repository hosts the backend for the ContentLab - Automated Content Analysis & Suggestion Engine service. The service uses FastAPI to deliver content suggestions, including semantic search, automated content aggregation, and AI-generated insights. It uses MongoDB for scalable storage and vector search, with scheduled jobs for continuous data ingestion and analysis. Designed for content creators and analysts, it transforms raw news and social media data into actionable, searchable intelligence.
 
-## High Level Architecture
+## **High Level Architecture**
 
 [High level architecture diagram here use [google slides](https://docs.google.com/presentation/d/1vo8Y8mBrocJtzvZc_tkVHZTsVW_jGueyUl-BExmVUtI/edit#slide=id.g30c066974c7_0_3536)]
 
-## Architecture Overview
+## **Architecture Overview**
 
 This backend is designed as a microservice, focusing on automated content analysis, aggregation, and AI-powered suggestions. Each component is modular, enabling independent scaling, maintenance, and integration with other services.
 
-### Core Structure
+### Core Structure:
 
 - **FastAPI Application:**  
   The main entry point (`backend/main.py`) serves as the API gateway for all backend operations. It exposes REST endpoints for content retrieval, semantic search, user management, and AI-driven insights. FastAPI ensures high performance, automatic documentation, and easy integration with other microservices.
@@ -27,10 +27,10 @@ This backend is designed as a microservice, focusing on automated content analys
 - **AI/ML Components:**  
   Integration with AWS Bedrock enables advanced AI capabilities, such as semantic embeddings and content analysis. These components process raw data into actionable intelligence, supporting features like semantic search and automated suggestions.
 
+## **Key Features**
 
-## Key Features
 
-### Tech Stack
+## **Tech Stack**
 
 ### Web Framework & API
 - [**fastapi**](https://fastapi.tiangolo.com/) for API development and building REST endpoints.
@@ -63,7 +63,8 @@ This backend is designed as a microservice, focusing on automated content analys
 ### Data Processing & Utilities
 - [**python-dotenv**](https://python-dotenv.readthedocs.io/) for environment variable management.
 
-## Relevant Models
+
+## **Relevant Models**
 
   - [**Claude 3 
   Haiku**](https://docs.aws.amazon.com/bedrock/latest/userguidebedrock-runtime_example_bedrock-runtime_InvokeModel_AnthropicClaude_section.html) for text generation and content analysis through AWS Bedrock.
@@ -73,9 +74,9 @@ This backend is designed as a microservice, focusing on automated content analys
   - [**Tavily Search API**](https://tavily.com/)
   for primary topic research and content discovery. 
 
-### Key Components
+## **Key Components**
 
-#### API Endpoints (`backend/routers/`)
+#### a. API Endpoints (`backend/routers/`)
 
 - **Content Router (`content.py`):**  
   Exposes endpoints for fetching content suggestions, news articles, Reddit posts, and user profiles. It acts as the main interface for clients to access aggregated and analyzed content.
@@ -87,7 +88,7 @@ This backend is designed as a microservice, focusing on automated content analys
   Offers advanced service endpoints, such as topic research and AI-powered content analysis. Enables integration with external tools and APIs for enhanced functionality.
 
 
-#### Data Processing Pipeline
+#### b. Data Processing Pipeline
 
 - **News Scraper (`scrapers/news_scraper.py`):**  
   Continuously collects articles from multiple news sources and categories. The scraper normalizes and stores articles in the database, preparing them for downstream processing and analysis.
@@ -101,9 +102,10 @@ This backend is designed as a microservice, focusing on automated content analys
 - **Content Analyzer (`bedrock/llm_output.py`):**  
   Utilizes Anthropic Claude models through AWS Bedrock to analyze and summarize content. Generates structured insights (topics, keywords, descriptions, labels) in JSON format, supporting automated suggestions and research.
 
-#### Scheduler (`scheduler/data_scheduler.py`)
+#### c. Scheduler (`scheduler/data_scheduler.py`)
 
 Automated daily jobs ensure the microservice remains current and efficient:
+
 - **News scraping at 15:45 UTC:** Ingests the latest news articles from configured sources.
 - **Reddit scraping at 15:55 UTC:** Collects new Reddit posts and comments for analysis.
 - **Embedding processing at 16:03 UTC:** Generates semantic embeddings for all newly ingested content.
@@ -144,6 +146,10 @@ Before you begin, ensure you have met the following requirements:
   documents)
   - `userProfiles` (for storing user profile
   information and preferences)
+
+### Step 1b: Set Up the Vector Search Index.
+
+1. Create the vector search index for the `news` and `reddit_posts`. You can do this using the MongoDB Atlas UI or by running the following python script located in the backend/embeddings/ directory: process_embeddings.py. Make sure to parametrize the script accordingly.
 
 ### Step 2: Add MongoDB User
 
