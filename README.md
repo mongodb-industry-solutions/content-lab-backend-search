@@ -29,10 +29,32 @@ This backend is designed as a microservice, focusing on automated content analys
 
 ## **Key Features**
 
+## Where Does MongoDB Shine?
+
+1. **Document Model:** MongoDB's flexible document model (using BSON/JSON) is perfect for storing scraped data, which often varies in structure and fields. Each scraped item can be stored as a document, allowing easy updates and schema evolution. The flexible schema reduces development time by up to 30% by allowing you to change data structures on the fly, which is crucial when dealing with varying scraped content formats.
+
+2. **Efficient Storage of Scraped Media Data:** Scraped media suggestions are stored as documents in a collection, enabling fast inserts and queries while supporting rich, nested data (metadata, tags, source info) MongoDB shows it can improve read and write speeds by up to 50% compared to traditional databases—essential for handling large volumes of scraped content efficiently.
+
+3. **Daily Scheduler Integration:** As the scheduler runs daily, new suggestions are added or updated in the collection. MongoDB's atomic operations and upserts make it easy to update existing documents or add new ones without complex migrations.
+
+4. **Atlas Vector Search for Semantic Discovery:** MongoDB Atlas provides integrated vector search, enabling semantic search over scraped content. Users can find relevant topic suggestions based on meaning, not just keywords. By embedding textual data and storing vectors in MongoDB, you enable instant retrieval of semantically relevant content—perfect for intelligent media recommendations.
+
+5. **Schema Flexibility for Evolving Data:** MongoDB's schemaless nature allows easy adaptation to changes in data structure as scraping sources evolve, without downtime or complex migrations.
+
+## The 4 Pillars of the Document Model
+
+1. **Easy**: [MongoDB's document model](https://www.mongodb.com/resources/basics/databases/document-databases) naturally fits with object-oriented programming, utilizing BSON documents that closely resemble JSON. This design simplifies the management of complex data structures such as user accounts, allowing developers to build features like account creation, retrieval, and updates with greater ease.
+
+2. **Fast**: Following the principle of "Data that is accessed together should be stored together," MongoDB enhances query performance. This approach ensures that related data—like user and account information—can be quickly retrieved, optimizing the speed of operations such as account look-ups or status checks, which is crucial in services demanding real-time access to operational data.
+
+3. **Flexible**: MongoDB's schema flexibility allows account models to evolve with changing business requirements. This adaptability lets financial services update account structures or add features without expensive and disruptive schema migrations, thus avoiding costly downtime often associated with structural changes.
+
+4. **Versatile**: The document model in MongoDB effectively handles a wide variety of data types, such as strings, numbers, booleans, arrays, objects, and even vectors. This versatility empowers applications to manage diverse account-related data, facilitating comprehensive solutions that integrate user, account, and transactional data seamlessly.
 
 ## **Tech Stack**
 
 ### Web Framework & API
+
 - [**fastapi**](https://fastapi.tiangolo.com/) for API development and building REST endpoints.
 - [**uvicorn**](https://www.uvicorn.org/) for running the ASGI server.
 
