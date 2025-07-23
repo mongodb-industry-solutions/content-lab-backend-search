@@ -27,7 +27,17 @@ This backend is designed as a microservice, focusing on automated content analys
 
 ![High Level Architecture](./architecture/high-level-architecture.png)
 
-## **Key Features**
+### **Key Features**
+
++ Scraped data from news and Reddit is ingested and stored in MongoDB collections (`news, reddit_posts`). 
+
++ A scheduled embedding process converts this content into semantic vectors using Cohere via AWS Bedrock. 
+
++ MongoDB Atlas Vector Search enables fast, semantic similarity search on these vectors.
+
++ Topic suggestions are generated and stored in the collection, which is called `sugestions` in our code base.
+
++ The MongoDB Aggregation Framework is used during semantic search and result aggregation for efficient and flexible data retrieval.
 
 + need to add a diagram about content suggestion using collection and atlas vector search. 
 
