@@ -2,10 +2,6 @@
 
 This repository hosts the backend for the ContentLab - Automated Content Analysis & Suggestion Engine service. The service uses FastAPI to deliver content suggestions, including semantic search, automated content aggregation, and AI-generated insights. It uses MongoDB for scalable storage and vector search, with scheduled jobs for continuous data ingestion and analysis. Designed for content creators and analysts, it transforms raw news and social media data into actionable, searchable intelligence.
 
-## **High Level Architecture**
-
-![High Level Architecture](./architecture/high-level-architecture.png)
-
 ## **Architecture Overview**
 
 This backend is designed as a microservice, focusing on automated content analysis, aggregation, and AI-powered suggestions. Each component is modular, enabling independent scaling, maintenance, and integration with other services.
@@ -27,10 +23,13 @@ This backend is designed as a microservice, focusing on automated content analys
 - **AI/ML Components:**  
   Integration with AWS Bedrock enables advanced AI capabilities, such as semantic embeddings and content analysis. These components process raw data into actionable intelligence, supporting features like semantic search and automated suggestions.
 
+## **High Level Architecture**
+
+![High Level Architecture](./architecture/high-level-architecture.png)
+
 ## **Key Features**
 
 + need to add a diagram about content suggestion using collection and atlas vector search. 
-
 
 ## Suggestion Engine Workflow
 
