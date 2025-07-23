@@ -57,6 +57,7 @@ The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes 
    - Actionable insights and suggested topics are displayed to the user in the frontend, enabling informed decision-making for content creation.
 
 **In summary:**  
+
 The Suggestion Engine combines user input, real-time data aggregation, semantic search, and advanced agents like Tavily to deliver relevant, actionable topic suggestions directly in the user interface.
 
 ## **Where Does MongoDB Shine?**
