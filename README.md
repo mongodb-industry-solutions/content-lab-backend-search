@@ -32,11 +32,11 @@ This backend is designed as a microservice, focusing on automated content analys
 + need to add a diagram about content suggestion using collection and atlas vector search. 
 
 
-## Suggestion Engine
+## Suggestion Engine Workflow
 
 The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes user queries, gathers relevant data from news and social media, and presents actionable insights. Here’s a complete overview of the workflow from query to response:
 
-### Workflow Overview
+### Overview
 
 1. **User Query Submission:**  
    Users enter a query or topic of interest in the frontend interface (such as the drafts page).
@@ -188,11 +188,18 @@ Before you begin, ensure you have met the following requirements:
 
 ## Setup Instructions
 
-### Step 1: Set Up MongoDB Database and Collections
+### Step 1: Set Up the Repository and MongoDB Database
 
-1. Log in to MongoDB Atlas and create a database named contentlab. Ensure the name is reflected in the environment variables.
+1. Clone the Repository
 
-2. Create the following collections if they do not
+```bash
+git clone <repo-url>
+cd ist-media-internship-be2
+```
+
+2. Log in to MongoDB Atlas and create a database named contentlab. Ensure the name is reflected in the environment variables.
+
+3. Create the following collections if they do not
   already exist:
   - `news` (for storing scraped news articles with
   embeddings)
