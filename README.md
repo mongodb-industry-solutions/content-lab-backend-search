@@ -25,7 +25,7 @@ This backend is designed as a microservice, focusing on automated content analys
 
 ## **High Level Architecture**
 
-![High Level Architecture](./architecture/high-level-architecture.png)
+![High Level Architecture](./architecture/high-level-architecture.svg)
 
 ### **Suggestion Engine Workflow**
 
