@@ -4,7 +4,7 @@ This repository hosts the backend for the ContentLab - Automated Content Analysi
 
 ## **High Level Architecture**
 
-[High level architecture diagram here use [google slides](https://docs.google.com/presentation/d/1vo8Y8mBrocJtzvZc_tkVHZTsVW_jGueyUl-BExmVUtI/edit#slide=id.g30c066974c7_0_3536)]
+![High Level Architecture](./architecture/high-level-architecture.png)
 
 ## **Architecture Overview**
 
