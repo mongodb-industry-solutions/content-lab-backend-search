@@ -27,54 +27,39 @@ This backend is designed as a microservice, focusing on automated content analys
 
 ![High Level Architecture](./architecture/high-level-architecture.png)
 
-### **Key Features**
-
-+ Scraped data from news and Reddit is ingested and stored in MongoDB collections (`news, reddit_posts`). 
-
-+ A scheduled embedding process converts this content into semantic vectors using Cohere via AWS Bedrock. 
-
-+ MongoDB Atlas Vector Search enables fast, semantic similarity search on these vectors.
-
-+ Topic suggestions are generated and stored in the collection, which is called `sugestions` in our code base.
-
-+ The MongoDB Aggregation Framework is used during semantic search and result aggregation for efficient and flexible data retrieval.
-
-+ need to add a diagram about content suggestion using collection and atlas vector search. 
-
-## Suggestion Engine Workflow
+### **Suggestion Engine Workflow**
 
 The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes user queries, gathers relevant data from news and social media, and presents actionable insights. Here’s a complete overview of the workflow from query to response:
 
 ### Overview
 
-1. **User Query Submission:**  
-   Users enter a query or topic of interest in the frontend interface (such as the drafts page).
+1. **Data Ingestion:**  
+   - Scraped data from news and Reddit is ingested and stored in MongoDB collections (`news`, `reddit_posts`).
 
-2. **Query Processing:**  
-   The Suggestion Engine receives the query and parses it to understand the context and intent.
+2. **Embedding Generation:**  
+   - A scheduled embedding process converts this content into semantic vectors using Cohere via AWS Bedrock.
 
-3. **Data Aggregation:**  
-   The engine uses the relevant data from multiple sources, including:
-   - News articles
-   - Social media posts
-   - Previously scraped content stored in MongoDB
+3. **Vector Indexing & Semantic Search:**  
+   - MongoDB Atlas Vector Search enables fast, semantic similarity search on these vectors.
+   - The MongoDB Aggregation Framework is used during semantic search and result aggregation for efficient and flexible data retrieval.
 
-4. **Semantic Search & Analysis:**  
-   Using MongoDB Atlas Vector Search, the engine performs semantic search to find content that matches the meaning of the query, not just keywords.
+4. **Tavily Search Agent Integration:**  
+   - The workflow leverages the [Tavily Search Agent](https://www.tavily.com/) `(visible on the drafts page in the frontend)` to improve the search capabilities and provide more accurate, context-aware suggestions.
 
-5. **Tavily Search Agent Integration:**  
-   The workflow leverages the [Tavily Search Agent](https://www.tavily.com/) (visible on the drafts page in the frontend) to enhance search capabilities and provide more accurate, context-aware suggestions.
+5. **Topic Suggestion Generation:**  
+   - Topic suggestions are generated based on the most relevant, semantically matched content.
+   - These suggestions are stored in the collection, which is called `suggestions` (Topic Suggestion) in our codebase.
 
 6. **Insight Generation:**  
-   The engine analyzes the aggregated data, identifies trends, and generates actionable topic suggestions.
+   - The engine analyses the aggregated data, identifies trends, and generates actionable topic suggestions using LLMs (`e.g., Claude 3 Haiku via AWS Bedrock`).
 
 7. **Response Presentation:**  
-   Actionable insights and suggested topics are displayed to the user in the frontend, enabling informed decision-making for content creation.
+   - Actionable insights and suggested topics are displayed to the user in the frontend, enabling informed decision-making for content creation.
 
 **In summary:**  
 The Suggestion Engine combines user input, real-time data aggregation, semantic search, and advanced agents like Tavily to deliver relevant, actionable topic suggestions directly in the user interface.
 
-## Where Does MongoDB Shine?
+## **Where Does MongoDB Shine?**
 
 1. **Document Model:** MongoDB's flexible document model (using BSON/JSON) is perfect for storing scraped data, which often varies in structure and fields. Each scraped item can be stored as a document, allowing easy updates and schema evolution. The flexible schema reduces development time by up to 30% by allowing you to change data structures on the fly, which is crucial when dealing with varying scraped content formats.
 
@@ -86,7 +71,7 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 
 5. **Schema Flexibility for Evolving Data:** MongoDB's schemaless nature allows easy adaptation to changes in data structure as scraping sources evolve, without downtime or complex migrations.
 
-## The 4 Pillars of the Document Model
+## **The 4 Pillars of the Document Model**
 
 1. **Easy**: [MongoDB's document model](https://www.mongodb.com/resources/basics/databases/document-databases) naturally fits with object-oriented programming, utilizing BSON documents that closely resemble JSON. This design simplifies the management of complex data structures such as user accounts, allowing developers to build features like account creation, retrieval, and updates with greater ease.
 
@@ -181,7 +166,7 @@ Automated daily jobs ensure the microservice remains current and efficient:
 
 + This microservice architecture enables scalable, automated, and intelligent content analysis, making it ideal for integration into larger platforms or as a standalone backend for content-driven applications.
 
-## Prerequisites
+## **Prerequisites**
 
 Before you begin, ensure you have met the following requirements:
 
@@ -195,31 +180,42 @@ Before you begin, ensure you have met the following requirements:
 - **Tavily Search API** account - [Register Here](https://tavily.com/)
 - **Docker** (optional, for containerized deployment) - [Install Here](https://docs.docker.com/get-docker/)
 
-## Setup Instructions
+## **Setup Instructions**
 
 ### Step 1: Set Up the Repository and MongoDB Database
 
-1. Clone the Repository
+1. **Fork the Repository**  
+   - Visit the [GitHub repository page](https://github.com/mongodb-industry-solutions/ist-media-internship-be/tree/main) and click the **Fork** button in the top right corner to create your own copy of the repository under your GitHub account.
 
-```bash
-git clone <repo-url>
-cd ist-media-internship-be2
-```
+2. **Clone Your Fork**  
+   - Open your terminal and run:
+     ```bash
+     git clone https://github.com/<your-username>/ist-media-internship-be.git
+     cd ist-media-internship-be
+     ```
 
-2. Log in to MongoDB Atlas and create a database named contentlab. Ensure the name is reflected in the environment variables.
+3. **(Optional) Set Up Upstream Remote**  
+   - To keep your fork up to date with the original repository, add the upstream remote:
+     ```bash
+     git remote add upstream https://github.com/<original-owner>/ist-media-internship-be.git
+     ```
 
-3. Create the following collections if they do not
-  already exist:
-  - `news` (for storing scraped news articles with
-  embeddings)
-  - `reddit_posts` (for storing Reddit posts and
-  comments with embeddings)
-  - `suggestions` (for storing AI-generated content
-  suggestions)
-  - `drafts` (for storing user-created draft
-  documents)
-  - `userProfiles` (for storing user profile
-  information and preferences)
+4. **Create a MongoDB Atlas Database**  
+   - Log in to [MongoDB Atlas](https://account.mongodb.com/account/login) and create a new project and cluster.
+   - Create a database named `contentlab`.
+   - Create the following collections if they do not already exist:
+     - `news` (for storing scraped news articles with embeddings)
+     - `reddit_posts` (for storing Reddit posts and comments with embeddings)
+     - `suggestions` (for storing AI-generated topic suggestions)
+     - `drafts` (for storing user-created draft documents)
+     - `userProfiles` (for storing user profile information and preferences)
+
+5. **Create a MongoDB User**  
+   - Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb-users/) to create a user with **readWrite** access to the `contentlab` database.
+
+6. **Configure Environment Variables**  
+   - Copy the `.env.example` file to `.env` in the `/backend` directory (or create a new `.env` file).
+   - Fill in the required environment variables as described in the README after.
 
 ### Step 1b: Set Up the Vector Search Index.
 
@@ -229,7 +225,7 @@ cd ist-media-internship-be2
 
 Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb-users/) to create a user with **readWrite** access to the `contentlab` database.
 
-## Configure Environment Variables
+## **Configure Environment Variables**
 
 > [!IMPORTANT]
 > Create a `.env` file in the `/backend` directory with the following content:
@@ -251,7 +247,7 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >REDDIT_USER_AGENT=your_reddit_user_agent
 > ```
 
-## Running the Backend
+## **Running the Backend**
 
 ### Virtual Environment Setup with Poetry
 
