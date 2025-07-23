@@ -57,42 +57,78 @@ async def get_suggestions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get the 4 most recent news documents from the last 3 days - news collection
 @router.get("/news")
 async def get_news():
     """
-    Get 4 documents from the news collection
+    Get up to 4 most recent news documents from the last 3 days
     """
     try:
         collection = db.get_collection("news")
-        news = list(collection.find({}).limit(4))
+        cutoff_date = datetime.utcnow() - timedelta(days=3)
+
+        # 1. get the news from the last three days. 
+        recent_news = list(
+            collection.find({"scraped_at": {"$gte": cutoff_date}})
+            .sort("scraped_at", -1)
+            .limit(4)
+        )
+        count = len(recent_news)
+        if count < 4:
+            older_news = list(
+                collection.find({"scraped_at": {"$lt": cutoff_date}})
+                .sort("scraped_at", -1)
+                .limit(4 - count)
+            )
+            news = recent_news + older_news
+        else:
+            news = recent_news
 
         # Convert to string for JSON serialization
         for result in news:
             if "_id" in result:
                 result["_id"] = str(result["_id"])
-
         return news
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get the 10 most recent reddit posts from the last 3 days - reddit_posts collection
 @router.get("/reddit")
 async def get_reddit():
     """
-    Get 10 documents from the reddit collection
+    Get 10 documents from the reddit collection from the last 3 days
     """
     try:
         collection = db.get_collection("reddit_posts")
-        reddit = list(collection.find({}).limit(10))
+        cutoff_date = datetime.utcnow() - timedelta(days=3)
+        recent_reddit = list(
+            collection.find({"scraped_at": {"$gte": cutoff_date}})
+            .sort("scraped_at", -1)
+            .limit(10)
+        )
+
+        count = len(recent_reddit)
+        if count < 10:
+            older_reddit = list(
+                collection.find({"scraped_at": {"$lt": cutoff_date}})
+                .sort("scraped_at", -1)
+                .limit(10 - count)
+            )
+            reddit = recent_reddit + older_reddit
+        else:
+            reddit = recent_reddit
 
         # Convert to string for JSON serialization
         for result in reddit:
             if "_id" in result:
                 result["_id"] = str(result["_id"])
-
         return reddit
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get the user profile by userId from the userProfiles collection
 @router.get("/profile")
 async def get_user_profile(
     userId: str
