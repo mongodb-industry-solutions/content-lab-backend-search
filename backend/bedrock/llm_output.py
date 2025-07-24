@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
+from .anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
 from embeddings.test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
