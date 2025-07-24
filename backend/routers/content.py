@@ -97,22 +97,23 @@ async def get_news():
 @router.get("/reddit")
 async def get_reddit():
     """
-    Get 10 documents from the reddit collection from the last 3 days
+    Get up to 10 most recent reddit documents, prioritizing the last 3 days, but falling back to older ones if needed.
     """
     try:
         collection = db.get_collection("reddit_posts")
         cutoff_date = datetime.utcnow() - timedelta(days=3)
+        # First, get reddit posts from the last 3 days
         recent_reddit = list(
-            collection.find({"scraped_at": {"$gte": cutoff_date}})
-            .sort("scraped_at", -1)
+            collection.find({"created_at": {"$gte": cutoff_date}})
+            .sort("created_at", -1)
             .limit(10)
         )
-
         count = len(recent_reddit)
         if count < 10:
+            # If not enough, get older reddit posts to fill up to 10
             older_reddit = list(
-                collection.find({"scraped_at": {"$lt": cutoff_date}})
-                .sort("scraped_at", -1)
+                collection.find({"created_at": {"$lt": cutoff_date}})
+                .sort("created_at", -1)
                 .limit(10 - count)
             )
             reddit = recent_reddit + older_reddit
@@ -124,7 +125,6 @@ async def get_reddit():
             if "_id" in result:
                 result["_id"] = str(result["_id"])
         return reddit
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
