@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from .anthropic_chat_completions import BedrockAnthropicChatCompletions
+from .anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
 from embeddings.test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
@@ -160,7 +160,7 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
             "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
             "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
+            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - choose the MOST specific match\n"
             "5. \"url\": The source URL or null if unavailable\n\n"
             
             "FORMAT REQUIREMENTS:\n"
@@ -344,7 +344,7 @@ if __name__ == "__main__":
     analyzer = ContentAnalyzer()
     db_connector = MongoDBConnector()
 
-    query = "What is the trending in Europe?"
+    query = "What is trending in Europe?"
     # Use analyze_and_store_search_results instead of analyze_search_results
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 
