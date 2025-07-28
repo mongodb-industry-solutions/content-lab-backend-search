@@ -62,9 +62,9 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 
 ## **Where Does MongoDB Shine?**
 
-1. **Document Model:** MongoDB's flexible document model (using BSON/JSON) is perfect for storing scraped data, which often varies in structure and fields. Each scraped item can be stored as a document, allowing easy updates and schema evolution. The flexible schema reduces development time by up to 30% by allowing you to change data structures on the fly, which is crucial when dealing with varying scraped content formats.
+1. **Document Model:** MongoDB's flexible document model (using BSON/JSON) is perfect for storing scraped data, which often varies in structure and fields. Each scraped item can be stored as a document, allowing easy updates and schema evolution. The flexible schema reduces development time by allowing you to change data structures on the fly, which is crucial when dealing with varying scraped content formats.
 
-2. **Efficient Storage of Scraped Media Data:** Scraped media suggestions are stored as documents in a collection, enabling fast inserts and queries while supporting rich, nested data (metadata, tags, source info) MongoDB shows it can improve read and write speeds by up to 50% compared to traditional databases—essential for handling large volumes of scraped content efficiently.
+2. **Efficient Storage of Scraped Media Data:** Scraped media suggestions are stored as documents in a collection, enabling fast inserts and queries while supporting rich, nested data (metadata, tags, source info) MongoDB shows it can improve read and write speeds compared to traditional databases, essential for handling large volumes of scraped content efficiently.
 
 3. **Daily Scheduler Integration:** As the scheduler runs daily, new suggestions are added or updated in the collection. MongoDB's atomic operations and upserts make it easy to update existing documents or add new ones without complex migrations.
 
