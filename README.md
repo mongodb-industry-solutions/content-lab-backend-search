@@ -159,10 +159,10 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 
 Automated daily jobs ensure the microservice remains current and efficient:
 
-- **News scraping at 15:45 UTC:** Ingests the latest news articles from configured sources.
-- **Reddit scraping at 15:55 UTC:** Collects new Reddit posts and comments for analysis.
-- **Embedding processing at 16:03 UTC:** Generates semantic embeddings for all newly ingested content.
-- **Content suggestion generation at 16:05 UTC:** Creates AI-powered suggestions based on analyzed data.
+- **News scraping at 04:00 UTC:** Ingests the latest news articles from configured sources.
+- **Reddit scraping at 04:15 UTC:** Collects new Reddit posts and comments for analysis.
+- **Embedding processing at 04:30 UTC:** Generates semantic embeddings for all newly ingested content.
+- **Content suggestion generation at 04:45 UTC:** Creates AI-powered suggestions based on analyzed data.
 - **Cleanup tasks:** Regularly prunes collections to maintain size limits and optimize performance.
 
 + This microservice architecture enables scalable, automated, and intelligent content analysis, making it ideal for integration into larger platforms or as a standalone backend for content-driven applications.
