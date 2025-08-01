@@ -1,10 +1,15 @@
+# ---- content.py ----
+
+# This file is used to create the content router.
+
+# Import the necessary libraries.
 from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from typing import Optional
 from bson import ObjectId
-
 from db.mdb import MongoDBConnector
 
+# Create the router
 router = APIRouter(
     prefix="/api/content",
     tags=["content"],
@@ -14,6 +19,7 @@ router = APIRouter(
 # Initialize database connection
 db = MongoDBConnector()
 
+# Get suggestions from the database with optional filtering
 @router.get("/suggestions")
 async def get_suggestions(
     query: Optional[str] = None,

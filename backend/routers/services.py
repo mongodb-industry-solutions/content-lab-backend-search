@@ -1,3 +1,8 @@
+# ---- services.py ----
+
+# This file is used to create the services router.
+
+# Import the necessary libraries.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -6,6 +11,7 @@ from bedrock.llm_output import ContentAnalyzer
 from db.mdb import MongoDBConnector
 from search_topics.topic_search import search_topic
 
+# Create the router
 router = APIRouter(
     prefix="/api/services",
     tags=["services"],
@@ -15,14 +21,17 @@ router = APIRouter(
 # Initialize database connection
 db = MongoDBConnector()
 
+# SearchRequest class to define the search request.
 class SearchRequest(BaseModel):
     query: str
     limit: int = 5
     label: Optional[str] = None
 
+# TopicRequest class to define the topic request.
 class TopicRequest(BaseModel):
     topic: str
 
+# Analyze search results and generate content suggestions
 @router.post("/analyze")
 async def analyze_content(request: SearchRequest):
     """
@@ -40,6 +49,7 @@ async def analyze_content(request: SearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Research a topic and get 4 key points for content creation
 @router.post("/research")
 async def research_topic(request: TopicRequest):
     """

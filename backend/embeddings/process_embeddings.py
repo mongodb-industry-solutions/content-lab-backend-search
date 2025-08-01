@@ -1,7 +1,8 @@
-# process_embeddings.py
+# ---process_embeddings.py---
 
-# --- File to handle the processing of embeddings --- 
+# This file is used to process the embeddings for the news and reddit collections.
 
+# Import the necessary libraries.
 import os
 import sys
 import logging
@@ -22,25 +23,48 @@ logger = logging.getLogger(__name__)
 REDDIT_COLLECTION = os.getenv("REDDIT_COLLECTION", "reddit_posts")
 NEWS_COLLECTION   = os.getenv("NEWS_COLLECTION",   "news")
 
-# Content Embeddings Class
+# Content Embeddings Class - To process and create the embeddings for the news and reddit collections.
 
 class ContentEmbedder:
     """Class to process news and reddit collection by adding embeddings."""
 
     def __init__(self, batch_size: int = 10):
-        """Batch size to avoid API rate limits."""
+        """Batch size to avoid API rate limits.
+        Args:
+            batch_size: int, the batch size to use for the embeddings
+        Returns:
+            None
+        """
         self.db_connector = MongoDBConnector()
         self.embedder = BedrockCohereEnglishEmbeddings()
         self.batch_size = batch_size
 
     def _format_fields(self, data: dict, fields: List[str]) -> List[str]:
+        """Format the fields of the data.
+        Args:
+            data: dict, the data to format
+            fields: List[str], the fields to format
+        Returns:
+            List[str]: The formatted fields
+        """
         return [f"{key.upper()}: {data[key]}" for key in fields if data.get(key)]
 
     def create_article_string(self, article: dict) -> str:
+        """Create a string from the article fields.
+        Args:
+            article: dict, the article to format
+        Returns:
+            str: The formatted article string
+        """
         return "\n\n".join(self._format_fields(article, ["title", "description", "content", "source", "country", "category"]))
 
     def create_social_post_string(self, post: dict) -> str:
-    # Using the title + comments + subreddit
+        """Create a string from the post fields.
+        Args:
+            post: dict, the post to format
+        Returns:
+            str: The formatted post string
+        """
         parts = []
         if title := post.get("title"):
             parts.append(f"TITLE: {title}")
@@ -61,7 +85,13 @@ class ContentEmbedder:
         return "\n\n".join(parts)
     
     def truncate_text(self, text: str, max_length: int = 2000) -> str:
-        """Truncate text to a maximum length, ensuring it ends at a word boundary."""
+        """Truncate text to a maximum length, ensuring it ends at a word boundary.
+        Args:
+            text: str, the text to truncate
+            max_length: int, the maximum length to truncate to
+        Returns:
+            str: The truncated text
+        """
         if len(text) <= max_length:
             return text
         
@@ -72,9 +102,15 @@ class ContentEmbedder:
 
     # ---- Collection Embeddings Processing ----
 
-    # ---- a.  news collection embeddings ----
+    # ---- a.  News collection Embeddings ----
 
     def process_news_embeddings(self):
+        """Process the news collection embeddings.
+        Args:
+            None
+        Returns:
+            int: The number of embeddings processed
+        """
         collection = self.db_connector.get_collection(NEWS_COLLECTION)
         query = {"$or": [
         {"embedding": {"$exists": False}},
@@ -114,6 +150,12 @@ class ContentEmbedder:
     # ---- b. Process reddit_posts collection embeddings ----
 
     def process_reddit_embeddings(self):
+        """Process the reddit collection embeddings.
+        Args:
+            None
+        Returns:
+            int: The number of embeddings processed
+        """
         collection = self.db_connector.get_collection(REDDIT_COLLECTION)
         query = {"$or": [
         {"embedding": {"$exists": False}},
@@ -156,6 +198,12 @@ class ContentEmbedder:
     # ---a. News Articles Cleanup---
 
     def clean_up_news_articles(self, max_per_category: int = 100):
+        """Clean up the news articles in the collection.
+        Args:
+            max_per_category: int, the maximum number of articles to keep per category
+        Returns:
+            int: The number of articles removed
+        """
         collection = self.db_connector.get_collection("news")
         categories = collection.distinct("category")
         total_removed = 0
@@ -178,6 +226,12 @@ class ContentEmbedder:
     
 
     def create_vector_search_indexes(self):
+        """Create the vector search indexes for the news and reddit collections.
+        Args:
+            None
+        Returns:
+            None
+        """
         for collection_name in ["news", "reddit_posts"]:
             try:
                 vs_creator = VectorSearchIDXCreator(collection_name=collection_name)
@@ -192,6 +246,12 @@ class ContentEmbedder:
                 logger.error(f"Error creating vector search index for {collection_name}: {e}")
 
     def run_full_process(self):
+        """Run the full process of processing the news and reddit collections.
+        Args:
+            None
+        Returns:
+            dict: The number of embeddings processed
+        """
         news_count = self.process_news_embeddings()
         reddit_count = self.process_reddit_embeddings()
         self.create_vector_search_indexes()
@@ -200,7 +260,7 @@ class ContentEmbedder:
             "reddit_embeddings_added": reddit_count
         }
 
-# Example Use Case
+# ---- Main function to run the embeddings processor -----
 
 if __name__ == "__main__":
     processor = ContentEmbedder(batch_size=10)

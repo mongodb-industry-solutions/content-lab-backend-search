@@ -1,9 +1,12 @@
+# ---- client.py ----
+
+# This file is used to create a Bedrock client.
+
+# Import the necessary libraries.
 import boto3
 from botocore.config import Config
 import os
-
 from typing import Optional
-
 import os
 from dotenv import load_dotenv
 
@@ -15,6 +18,16 @@ class BedrockClient:
      
     def __init__(self, aws_access_key: Optional[str] = None, aws_secret_key: Optional[str] = None,
                  assumed_role: Optional[str] = None, region_name: Optional[str] = "us-east-1") -> None:
+        """
+        Initialize the BedrockClient.
+        Args:
+            aws_access_key: Optional[str], the AWS access key
+            aws_secret_key: Optional[str], the AWS secret key
+            assumed_role: Optional[str], the assumed role
+            region_name: Optional[str], the region name
+        Returns:
+            None
+        """
         self.region_name = region_name
         self.assumed_role = assumed_role
         self.aws_access_key = aws_access_key

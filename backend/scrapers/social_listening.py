@@ -1,7 +1,8 @@
 # ---social_listening.py---
-# This module contains the RedditScraper and TwitterScraper class to scrape posts from Reddit and Twitter.
 
+# This file contains the RedditScraper and TwitterScraper class to scrape posts from Reddit and Twitter.
 
+# Import the necessary libraries.
 import os
 import sys
 import time
@@ -88,16 +89,15 @@ SUBREDDIT_TOPICS = {
     ]
 }
 
-
 POST_LIMIT = 15
 COMMENT_LIMIT = 5
 
 # ------a. Reddit Scraper------
 
-# RedditScraper class to scrape posts from a specified subreddit
-
 class RedditScraper:
-
+    """
+    RedditScraper class to scrape posts from a specified subreddit.
+    """
     def __init__(self, subreddit: str):
         self.subreddit = subreddit
         self.reddit = praw.Reddit(
@@ -194,6 +194,12 @@ class RedditScraper:
         return self.extract_posts_with_diverse_sorting()
 
     def store(self, db: MongoDBConnector) -> int:
+        """Store posts in the database
+        Args:
+            db: MongoDBConnector object
+        Returns:
+            int: Number of posts stored
+        """
         col = db.get_collection(REDDIT_COLLECTION)
         # Using the new diverse sorting method
         posts = self.extract_posts_with_diverse_sorting()
@@ -204,6 +210,12 @@ class RedditScraper:
         return inserted
 
     def store(self, db: MongoDBConnector) -> int:
+        """Store posts in the database
+        Args:
+            db: MongoDBConnector object
+        Returns:
+            int: Number of posts stored
+        """
         col = db.get_collection(REDDIT_COLLECTION)
         posts = self.extract_posts()
         inserted = 0
@@ -213,12 +225,14 @@ class RedditScraper:
         return inserted
 
     
-# ------c. Main function to run scrapers------
+# ----- Main function to run social listening scraper ------
 
 if __name__ == "__main__":
+
+    # MongoDB connector
     db = MongoDBConnector()
     
-    # Reddit scraping
+    # Reddit scraper
     for sr in SUBREDDIT_TOPICS:
         count = RedditScraper(subreddit=sr).store(db)
         print(f"r/{sr}: stored {count} posts")

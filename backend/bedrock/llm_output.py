@@ -2,6 +2,7 @@
 
 # Process news and Reddit snippets using Claude Model from bedrock to extract structured insights.
 
+# Import the necessary libraries.
 import os
 import sys
 import json
@@ -30,11 +31,24 @@ class ContentAnalyzer:
     Process news and Reddit snippets using LLMs to extract structured insights.
     """
     def __init__(self):
+        """
+        Initialize the ContentAnalyzer.
+        Args:
+            None
+        Returns:
+            None
+        """
         self.llm = BedrockAnthropicChatCompletions()
         self.snippet_generator = SnippetGenerator(max_sentences=2, max_comments=3)
 
     def _clean_json(self, text: str) -> str:
-        """Clean and extract valid JSON from LLM response."""
+        """
+        Clean and extract valid JSON from LLM response.
+        Args:
+            text: str, the text to clean
+        Returns:
+            str: The cleaned text
+        """
         # Find JSON array pattern
         json_match = re.search(r'\[\s*{.*}\s*\]', text, re.DOTALL)
         if json_match:
@@ -50,7 +64,14 @@ class ContentAnalyzer:
     # -------- Prompt Formatting Methods --------
 
     def _format_news_prompt(self, snippets: List[str], ids: List[str], urls: List[str]) -> str:
-        """Prompt template with few-shot example for news articles."""
+        """Prompt template with few-shot example for news articles.
+        Args:
+            snippets: List[str], the snippets to format
+            ids: List[str], the ids of the snippets
+            urls: List[str], the urls of the snippets
+        Returns:
+            str: The formatted prompt
+        """
         
         # Clear system context
         
@@ -107,9 +128,17 @@ class ContentAnalyzer:
         return f"{header}\n\n{example}\n\n{body}{task}"
 
     def _format_reddit_prompt(self, snippets: List[str], ids: List[str], urls: List[Optional[str]]) -> str:
-        """The prompt template with few-shot example for Reddit posts."""
+        """
+        The prompt template with few-shot example for Reddit posts.
+        Args:
+            snippets: List[str], the snippets to format
+            ids: List[str], the ids of the snippets
+            urls: List[str], the urls of the snippets
+        Returns:
+            str: The formatted prompt
+        """
         
-        # Start with a clear system context
+        # Clear system context  
         header = (
             "You are a community insights analyst specializing in Reddit discourse analysis. "
             "Your expertise lies in identifying collective sentiment patterns, recognizing consensus vs. disagreement, "
@@ -122,7 +151,7 @@ class ContentAnalyzer:
             "organizing it into consistent, comparable data fields."
         )
         
-        # Add a few-shot example
+        # Added a few-shot example
 
         example = (
             "EXAMPLE INPUT:\n"
@@ -176,6 +205,13 @@ class ContentAnalyzer:
     # News Processing 
 
     def process_news(self, news_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Process the news results.
+        Args:
+            news_results: List[Dict[str, Any]], the news results to process
+        Returns:
+            List[Dict[str, Any]]: The processed news results
+        """
         snippets, ids, urls = [], [], []
         for article in news_results:
             snippets.append(self.snippet_generator.news_snippet(article))
@@ -208,6 +244,13 @@ class ContentAnalyzer:
     # Reddit Processing 
     
     def process_reddit(self, reddit_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Process the reddit results.
+        Args:
+            reddit_results: List[Dict[str, Any]], the reddit results to process
+        Returns:
+            List[Dict[str, Any]]: The processed reddit results
+        """
         snippets, ids, urls = [], [], []
         for post in reddit_results:
             snippets.append(self.snippet_generator.reddit_snippet(post))
@@ -237,8 +280,17 @@ class ContentAnalyzer:
                 return []
         
         return analysis
+    
+    # Analyze the search results
 
     def analyze_search_results(self, query: str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Analyze the search results.
+        Args:
+            query: str, the query to analyze
+        Returns:
+            Dict[str, List[Dict[str, Any]]]: The analyzed search results
+        """
         query_embedding = convert_query_to_embedding(query)
         if not query_embedding:
             logger.error("Failed to generate embedding for query")
@@ -271,6 +323,15 @@ class ContentAnalyzer:
     # Save suggestions to MongoDB
     def store_analysis(self, db_connector: MongoDBConnector, analysis: Dict[str, List[Dict[str, Any]]], 
                   query: str = None) -> Dict[str, int]:
+        """
+        Store the analysis results in MongoDB.
+        Args:
+            db_connector: MongoDBConnector, the database connector
+            analysis: Dict[str, List[Dict[str, Any]]], the analysis results to store
+            query: str, the query that was used to generate the analysis
+        Returns:
+            Dict[str, int]: The number of documents stored
+        """
         if not analysis:
             logger.warning("No analysis results to store")
             return {"news": 0, "reddit": 0}
@@ -317,6 +378,12 @@ class ContentAnalyzer:
     def analyze_and_store_search_results(self, query: str, db_connector: MongoDBConnector, label: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze search results for a query and store them in the database.
+        Args:
+            query: str, the query to analyze
+            db_connector: MongoDBConnector, the database connector
+            label: Optional[str], the label to filter the results by
+        Returns:
+            Dict[str, Any]: The analysis results
         """
         # Get analysis results with combined structure
         result = self.analyze_search_results(query)
@@ -339,14 +406,17 @@ class ContentAnalyzer:
             "stored": storage_counts
         }
     
+# ---- Main function to run the content analyzer -----
 
 if __name__ == "__main__":
+    # Initialize the ContentAnalyzer
     analyzer = ContentAnalyzer()
     db_connector = MongoDBConnector()
 
+    # Analyze and store the search results for a query
     query = "What is trending in Europe?"
-    # Use analyze_and_store_search_results instead of analyze_search_results
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 
+    # Display the analysis results
     print(f"Analysis complete. Stored {results['stored']['news']} news and {results['stored']['reddit']} Reddit analysis documents.")
     print(json_util.dumps(results['analysis'], indent=2))

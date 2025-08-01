@@ -1,3 +1,8 @@
+# ---- drafts.py ----
+
+# This file is used to create the drafts router.
+
+# Import the necessary libraries.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
@@ -6,6 +11,7 @@ from bson import ObjectId
 
 from db.mdb import MongoDBConnector
 
+# Create the router
 router = APIRouter(
     prefix="/api/drafts",
     tags=["drafts"],
@@ -15,6 +21,7 @@ router = APIRouter(
 # Initialize database connection
 db = MongoDBConnector()
 
+# DraftRequest class to define the draft request. 
 class DraftRequest(BaseModel):
     userId: str
     title: str
@@ -23,6 +30,7 @@ class DraftRequest(BaseModel):
     keywords: Optional[List[str]] = None
     topicId: Optional[str] = None
 
+# Get the drafts documents from a specific user by userId
 @router.get("")
 async def get_drafts(
     userId: str
@@ -43,6 +51,7 @@ async def get_drafts(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get a single draft by ID, ensuring it belongs to the requesting user
 @router.get("/{draft_id}")
 async def get_draft_by_id(
     draft_id: str,
@@ -70,6 +79,7 @@ async def get_draft_by_id(
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get an existing draft for a specific topic and user
 @router.get("/by-topic/{topic_id}")
 async def get_draft_by_topic(
     topic_id: str,
@@ -95,6 +105,7 @@ async def get_draft_by_topic(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Save a draft document to the drafts collection
 @router.post("")
 async def save_draft(
     request: DraftRequest
@@ -128,6 +139,7 @@ async def save_draft(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Update a draft document in the drafts collection
 @router.put("/{draft_id}")
 async def update_draft(
     draft_id: str,
@@ -165,7 +177,8 @@ async def update_draft(
         return updated_draft
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
-    
+
+# Delete a draft document by ID and userId
 @router.delete("/{draft_id}")
 async def delete_draft(
     draft_id: str,
