@@ -66,7 +66,7 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
         logger.error(f"Error enforcing max docs for '{collection_name}': {e}")
 
 
-def cleanup_suggestions(retention_days: int = 14, max_docs: int = 100):
+def cleanup_suggestions(retention_days: int = 5, max_docs: int = 150):
     """
     Remove old content suggestions but keep at least max_docs in the collection.
     Args:
