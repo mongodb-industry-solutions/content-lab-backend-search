@@ -1,8 +1,9 @@
-# data_scheduler.py
+# ---- data_scheduler.py ----
 
 # This script schedules the scraping of news articles and Reddit posts,
 # processes the scraped content, and stores it in a MongoDB database.
 
+# Import the necessary libraries.
 import os
 import sys
 import time
@@ -40,7 +41,14 @@ db_connector = MongoDBConnector()
 # a. Enforce max documents in collections
 
 def enforce_max_docs(collection_name: str, max_docs: int = 100):
-    """Ensure no more than `max_docs` in the collection, we drop the oldest if necessary."""
+    """
+    Ensure no more than `max_docs` in the collection, we drop the oldest if necessary.
+    Args:
+        collection_name: str, the name of the collection to enforce max documents
+        max_docs: int, the maximum number of documents to keep in the collection
+    Returns:
+        None
+    """
     coll = db_connector.get_collection(collection_name)
     total = coll.count_documents({})
     if total <= max_docs:
@@ -59,7 +67,14 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
 
 
 def cleanup_suggestions(retention_days: int = 14, max_docs: int = 100):
-    """Remove old content suggestions but keep at least max_docs in the collection."""
+    """
+    Remove old content suggestions but keep at least max_docs in the collection.
+    Args:
+        retention_days: int, the number of days to keep the suggestions
+        max_docs: int, the maximum number of documents to keep in the collection
+    Returns:
+        None
+    """
     coll = db_connector.get_collection("suggestions")
     total = coll.count_documents({})
     if total <= max_docs:
@@ -97,7 +112,15 @@ def cleanup_suggestions(retention_days: int = 14, max_docs: int = 100):
         logger.error(f"Error removing old suggestions: {e}")
 
 def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: int = 100):
-    """Remove up to (total - max_docs) docs older than retention_days, but never drop below max_docs."""
+    """
+    Remove up to (total - max_docs) docs older than retention_days, but never drop below max_docs.
+    Args:
+        collection_name: str, the name of the collection to cleanup
+        retention_days: int, the number of days to keep the documents
+        max_docs: int, the maximum number of documents to keep in the collection
+    Returns:
+        None
+    """
     coll = db_connector.get_collection(collection_name)
     total = coll.count_documents({})
     if total <= max_docs:
@@ -141,7 +164,9 @@ def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: in
 # -------- 2. Scheduler verification function --------
 
 def log_scheduler_status():
-    """Log the scheduler status and upcoming tasks"""
+    """
+    Log the scheduler status and upcoming tasks
+    """
     now = datetime.now(pytz.UTC)
     logger.info(f"Scheduler heartbeat at {now.isoformat()}")
     logger.info("Upcoming tasks:")
@@ -286,6 +311,8 @@ def test_scheduler_job():
 
 # Schedule the test job to run every hour
 schedule.hourly(dt.time(minute=0, second=0), test_scheduler_job)
+
+# ---- Main function to run the data scheduler -----
 
 if __name__ == "__main__":
     start = datetime.now(pytz.UTC)

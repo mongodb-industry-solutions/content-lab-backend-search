@@ -1,3 +1,8 @@
+# ---- scheduler.py ----
+
+# This file is used to create the scheduler router.
+
+# Import the necessary libraries.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
@@ -20,22 +25,27 @@ from scheduler_job.data_scheduler import (
     test_scheduler_job
 )
 
+# Configure logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 
+# Create the scheduler status model
 class SchedulerStatus(BaseModel):
     status: str
     current_time: str
     jobs_count: int
     message: str
 
+# Create the job result model
 class JobResult(BaseModel):
     job_name: str
     status: str
     message: str
     timestamp: str
 
+# Get the current scheduler status
 @router.get("/status", response_model=SchedulerStatus)
 async def get_scheduler_status():
     """Get current scheduler status"""
@@ -53,6 +63,7 @@ async def get_scheduler_status():
         logger.error(f"Error getting scheduler status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get the list of all scheduled jobs
 @router.get("/jobs")
 async def get_scheduled_jobs():
     """Get list of all scheduled jobs"""
@@ -80,6 +91,7 @@ async def get_scheduled_jobs():
         logger.error(f"Error getting scheduled jobs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Manually trigger news scraper job
 @router.post("/jobs/news-scraper/run", response_model=JobResult)
 async def run_news_scraper_manually():
     """Manually trigger news scraper job"""
@@ -101,6 +113,7 @@ async def run_news_scraper_manually():
             timestamp=datetime.now(pytz.UTC).isoformat()
         )
 
+# Manually trigger Reddit scraper job
 @router.post("/jobs/reddit-scraper/run", response_model=JobResult)
 async def run_reddit_scraper_manually():
     """Manually trigger Reddit scraper job"""
@@ -122,6 +135,7 @@ async def run_reddit_scraper_manually():
             timestamp=datetime.now(pytz.UTC).isoformat()
         )
 
+# Manually trigger embeddings processing job
 @router.post("/jobs/embeddings/run", response_model=JobResult)
 async def run_embeddings_manually():
     """Manually trigger embeddings processing job"""
@@ -143,6 +157,7 @@ async def run_embeddings_manually():
             timestamp=datetime.now(pytz.UTC).isoformat()
         )
 
+# Manually trigger content suggestions generation job
 @router.post("/jobs/content-suggestions/run", response_model=JobResult)
 async def run_content_suggestions_manually():
     """Manually trigger content suggestions generation job"""
@@ -164,6 +179,7 @@ async def run_content_suggestions_manually():
             timestamp=datetime.now(pytz.UTC).isoformat()
         )
 
+# Manually trigger test scheduler job
 @router.post("/jobs/test/run", response_model=JobResult)
 async def run_test_job_manually():
     """Manually trigger test scheduler job"""
@@ -185,6 +201,7 @@ async def run_test_job_manually():
             timestamp=datetime.now(pytz.UTC).isoformat()
         )
 
+# Get scheduler status information
 @router.get("/logs")
 async def get_scheduler_logs():
     """Get scheduler status information"""
@@ -207,6 +224,7 @@ async def get_scheduler_logs():
         logger.error(f"Error getting scheduler logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Get structured scheduler overview with clean JSON response
 @router.post("/scheduler-overview")
 async def scheduler_overview():
     """Get structured scheduler overview with clean JSON response"""

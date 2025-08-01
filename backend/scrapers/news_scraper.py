@@ -1,3 +1,8 @@
+# ---news_scraper.py---
+
+# This file is used to scrape news articles from the NewsAPI.
+
+# Import the necessary libraries.
 import requests
 from bs4 import BeautifulSoup
 import logging
@@ -17,16 +22,14 @@ import hashlib
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
 
-# logging setup
+# Logging setup
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # News_Categories Global Variable
-
 NEWS_CATEGORIES = ["technology", "health", "sports", "politics",
                "science", "business", "entertainment", "general"]
-
 
 # ---------1. Abstract base class for news scrapers---------    
 
@@ -247,7 +250,7 @@ class NewsAPIScraper(NewsScraper):
         logger.info(f"Completed scraping from NewsAPI. Total articles: {total_articles}")
 
 
-# Example run 
+# ----Main function to run news scraper------
 
 if __name__ == "__main__":
 

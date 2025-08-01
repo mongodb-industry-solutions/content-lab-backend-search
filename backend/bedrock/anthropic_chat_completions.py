@@ -1,12 +1,13 @@
-import json
+# ---- anthropic_chat_completions.py ----
 
+# This file is used to generate chat completions using Bedrock's Anthropic text models.
+
+# Import the necessary libraries.
+import json
 from bedrock.client import BedrockClient
 from botocore.exceptions import ClientError
-
 from typing import Optional
-
 import logging
-
 import os
 from dotenv import load_dotenv
 

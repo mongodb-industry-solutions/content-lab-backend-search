@@ -1,3 +1,7 @@
+# _vector_search_idx_creator.py
+
+# This file is used to create a vector search index in MongoDB. It is used to create the index for the semantic search.
+
 import logging
 from pymongo.errors import OperationFailure
 

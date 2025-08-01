@@ -1,3 +1,8 @@
+# ---topic_search.py---
+
+# This file is used to search for recent updates related to a specific topic using Tavily Search Agent API and Bedrock LLM (as a fallback).
+
+# Import the necessary libraries.
 import os
 import json
 import logging
@@ -13,6 +18,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 def get_tavily_api_keys():
+    """
+    Get the Tavily API keys from the environment variables.
+    """
     keys = os.getenv("TAVILY_API_KEYS", "")
     return [k.strip() for k in keys.split(",") if k.strip()]
 
@@ -21,6 +29,12 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
     """
     Search for recent updates related to a specific topic using Tavily.
     Falls back to Bedrock LLM if all Tavily API keys fail.
+    Args:
+        topic: str, the topic to search for
+        max_results: int, the maximum number of results to return
+        max_retries: int, the maximum number of retries to try if the search fails
+    Returns:
+        dict: The search results
     """
     query = f"what are the recent updates on {topic}"
     logger.info(f"Searching with query: '{query}'")
@@ -64,7 +78,7 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
                 last_exception = e
                 continue
 
-    # Fallback to Bedrock LLM
+    # Fallback to Bedrock LLM if all Tavily API keys fail
     logger.info(f"All Tavily API keys failed for topic '{topic}'. Falling back to Bedrock LLM.")
     try:
         bedrock_llm = BedrockAnthropicChatCompletions()
@@ -90,6 +104,8 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
             "results": [],
             "source": "none"
         }
+
+# ----Main function to run topic search------
 
 if __name__ == "__main__":
     example_topic = "renewable energy technologies"

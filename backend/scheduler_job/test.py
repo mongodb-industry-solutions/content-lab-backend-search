@@ -1,3 +1,8 @@
+# ---- test.py ----
+
+# This file should only be used to test the data scheduler.
+
+# Import the necessary libraries.
 import sys
 import os
 import logging
