@@ -19,7 +19,6 @@ router = APIRouter(
 # Initialize database connection
 db = MongoDBConnector()
 
-# Get suggestions from the database with optional filtering
 @router.get("/suggestions")
 async def get_suggestions(
     query: Optional[str] = None,
@@ -34,22 +33,33 @@ async def get_suggestions(
     try:
         collection = db.get_collection("suggestions")
         
-        # Build filter query
-        filter_query = {}
+        # Build base filter query (without time filter)
+        base_filter = {}
         if query:
-            filter_query["source_query"] = {"$regex": query, "$options": "i"}
+            base_filter["source_query"] = {"$regex": query, "$options": "i"}
         if label:
-            filter_query["label"] = label
+            base_filter["label"] = label
         if type and type in ["news_analysis", "reddit_analysis"]:
-            filter_query["type"] = type
-            
-        # Add time filter
+            base_filter["type"] = type
+        
+        # First try to get recent suggestions
+        recent_filter = base_filter.copy()
         if days > 0:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
-            filter_query["analyzed_at"] = {"$gte": cutoff_date}
+            recent_filter["analyzed_at"] = {"$gte": cutoff_date}
         
-        # Fetch results
-        results = list(collection.find(filter_query).sort("analyzed_at", -1).limit(limit))
+        # Fetch recent results
+        recent_results = list(collection.find(recent_filter).sort("analyzed_at", -1).limit(limit))
+        
+        # FALLBACK: If not enough recent results, get older ones
+        if len(recent_results) < limit and days > 0:
+            older_filter = base_filter.copy()
+            older_filter["analyzed_at"] = {"$lt": cutoff_date}
+            
+            older_results = list(collection.find(older_filter).sort("analyzed_at", -1).limit(limit - len(recent_results)))
+            results = recent_results + older_results
+        else:
+            results = recent_results
         
         # Convert to string for JSON serialization
         for result in results:
