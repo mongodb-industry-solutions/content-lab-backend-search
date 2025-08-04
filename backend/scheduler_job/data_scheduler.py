@@ -160,6 +160,58 @@ def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: in
     except Exception as e:
         logger.error(f"Error cleaning up '{collection_name}': {e}")
 
+def cleanup_duplicates():
+    """
+    Remove duplicate articles based on URL and title.
+    Keeps the newest document (by _id) and removes older duplicates.
+    Runs every 2 days to maintain clean collections.
+    """
+    logger.info("Starting duplicate cleanup job")
+    collections = ["news", "reddit_posts", "suggestions"]
+    total_removed = 0
+    
+    for collection_name in collections:
+        coll = db_connector.get_collection(collection_name)
+        
+        # Find duplicates based on URL and title combination
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {
+                        "url": "$url",
+                        "title": "$title"
+                    },
+                    "docs": {"$push": {"id": "$_id", "created": "$_id"}},
+                    "count": {"$sum": 1}
+                }
+            },
+            {
+                "$match": {
+                    "count": {"$gt": 1}
+                }
+            }
+        ]
+        
+        duplicates = list(coll.aggregate(pipeline))
+        removed_count = 0
+        
+        for dup in duplicates:
+            # Sort by _id (newer ObjectIds are larger) and keep the newest
+            sorted_docs = sorted(dup["docs"], key=lambda x: x["created"], reverse=True)
+            docs_to_remove = [doc["id"] for doc in sorted_docs[1:]]  # Remove all except newest
+            
+            try:
+                if docs_to_remove:
+                    result = coll.delete_many({"_id": {"$in": docs_to_remove}})
+                    removed_count += result.deleted_count
+            except Exception as e:
+                logger.error(f"Error removing duplicates from {collection_name}: {e}")
+                
+        logger.info(f"Removed {removed_count} duplicates from '{collection_name}'")
+        total_removed += removed_count
+    
+    logger.info(f"Duplicate cleanup completed: removed {total_removed} total duplicates")
+
 
 # -------- 2. Scheduler verification function --------
 
@@ -170,12 +222,13 @@ def log_scheduler_status():
     now = datetime.now(pytz.UTC)
     logger.info(f"Scheduler heartbeat at {now.isoformat()}")
     logger.info("Upcoming tasks:")
-    logger.info("- News scraper: daily at 04:00  UTC")
+    logger.info("- News scraper: daily at 04:00 UTC")
     logger.info("- Reddit scraper: daily at 04:15 UTC")
     logger.info("- Embedding processor: daily at 04:30 UTC")
     logger.info("- Content suggestion generator: daily at 04:45 UTC")
+    logger.info("- Duplicate cleanup: daily at 06:00 UTC")  
     logger.info("- Cleanup tasks: immediately after each job")
-    logger.info("- Status checks: every 4 hours (00:00, 04:00, … UTC)")
+    logger.info("- Status checks: every 4 hours (00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC)")
 
 # ------ 3. Scraper Jobs ---------   
 
@@ -301,6 +354,9 @@ schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
 # content suggestion generator 
 schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
 
+# duplicate cleanup every 2 days at 05:00 UTC
+schedule.daily(datetime.strptime("06:00", "%H:%M").time(), cleanup_duplicates)
+
 # status checks every 4 hours
 for hour in range(0, 24, 4):
     schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
@@ -321,6 +377,9 @@ if __name__ == "__main__":
         # Test MongoDB connection
         db_connector.get_collection("test").find_one()
         logger.info("MongoDB connection successful")
+
+        # Ensuring indexes are created for efficient duplicate detection
+        db_connector.ensure_indexes()
 
         log_scheduler_status()
         logger.info(f"Scheduler overview: {schedule}")

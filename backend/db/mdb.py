@@ -2,6 +2,9 @@ import os
 from pymongo import MongoClient
 from abc import abstractmethod
 from dotenv import load_dotenv
+import logging
+# Add logging for index creation
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -70,3 +73,31 @@ class MongoDBConnector:
         collection = self.get_collection(collection_name)
         result = collection.delete_many(query)
         return result.deleted_count
+    
+    def create_duplicate_detection_indexes(self):
+        """Create indexes for efficient duplicate detection and cleanup operations"""
+        collections = ["news", "reddit_posts", "suggestions"]
+        
+        for collection_name in collections:
+            collection = self.get_collection(collection_name)
+            
+            try:
+                # Compound index for duplicate detection (url + title)
+                collection.create_index([
+                    ("url", 1),
+                    ("title", 1)
+                ], background=True, name="url_title_duplicate_idx")
+            
+                logger.info(f"Created duplicate detection indexes for '{collection_name}'")
+                
+            except Exception as e:
+                # Index might already exist, which is fine
+                logger.info(f"Index creation for '{collection_name}': {e}")
+
+    def ensure_indexes(self):
+        """Ensure all necessary indexes are created"""
+        try:
+            self.create_duplicate_detection_indexes()
+            logger.info("All indexes ensured successfully")
+        except Exception as e:
+            logger.error(f"Error ensuring indexes: {e}")

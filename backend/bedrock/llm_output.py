@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from .anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
+from anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
 from embeddings.test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
@@ -114,8 +114,19 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
             "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
             "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
+            "4. \"label\": MUST be EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\"] - NO OTHER VALUES ALLOWED. Choose the closest match even if not perfect.\n"
             "5. \"url\": The source URL\n\n"
+            
+            "CRITICAL LABEL REQUIREMENTS:\n"
+            "- You MUST use only these 5 labels: technology, business, health, sports\n"
+            "- If content doesn't fit any specific category perfectly, use \"general\"\n"
+            "- Crime/legal stories →  business (depending on context)\n"
+            "- Culture topics → general or entertainment (depending on focus)\n"
+            "- Politics → business (depending on focus)\n"
+            "- Science → technology or health (depending on application)\n"
+            "- Mixed topics that span categories → general\n"
+            "- NEVER create new categories or use labels not in the list\n\n"
+            "- When in doubt, choose \"general\"\n\n"
             
             "FORMAT REQUIREMENTS:\n"
             "- Return a JSON array of objects with structure exactly like the example\n"
@@ -189,8 +200,17 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
             "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
             "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - choose the MOST specific match\n"
+            "4. \"label\": MUST be EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - NO OTHER VALUES ALLOWED. Choose the closest match even if not perfect.\n"
             "5. \"url\": The source URL or null if unavailable\n\n"
+            
+            "CRITICAL LABEL REQUIREMENTS:\n"
+            "- You MUST use only these 8 labels: technology, business, health, sports, politics, science, general, entertainment\n"
+            "- If content doesn't fit any specific category perfectly, use \"general\"\n"
+            "- Crime/legal discussions → general (depending on context)\n"
+            "- Culture topics → general or entertainment (depending on focus)\n"
+            "- Mixed topics that span categories → general\n"
+            "- NEVER create new categories or use labels not in the list\n\n"
+            "- When in doubt, choose \"general\"\n\n"
             
             "FORMAT REQUIREMENTS:\n"
             "- Return a JSON array of objects with structure exactly like the example\n"
@@ -414,7 +434,7 @@ if __name__ == "__main__":
     db_connector = MongoDBConnector()
 
     # Analyze and store the search results for a query
-    query = "What is trending in Europe?"
+    query = "Recent crime in USA?"
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 
     # Display the analysis results
