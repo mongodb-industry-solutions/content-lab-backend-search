@@ -24,7 +24,7 @@ if __name__ == "__main__":
     
     logger.info("Testing embedding processor...")
     # process_embeddings()
-
+    
     logger.info("Testing content suggestions...")
     # generate_content_suggestions()
 

@@ -23,7 +23,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
 
 # Logging setup
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -34,14 +33,15 @@ NEWS_CATEGORIES = ["technology", "health", "sports", "politics",
 # ---------1. Abstract base class for news scrapers---------    
 
 class NewsScraper(ABC):
-    """Base class"""
-    """
+    """Base class for news scrapers"""
+    
+    def __init__(self, url: str, category: str):
+        """
         Initialize a news scraper.
         Args:
             url (str): The URL to scrape
             category (str): The category of news (e.g., 'finance', 'tech')
-    """
-    def __init__(self, url: str, category: str):
+        """
         self.url = url
         self.category = category
         self.headers = {
@@ -76,37 +76,65 @@ class NewsScraper(ABC):
         """
         pass
     
-    def store_articles(self, db_connector: MongoDBConnector, articles: List[Dict[str, Any]]) -> None:
+    def store_articles(self, db_connector: MongoDBConnector, articles: List[Dict[str, Any]]) -> int:
         """
-        Store articles in the database.
+        Store articles in the database using upsert pattern to prevent duplicates.
         
         Args:
             db_connector (MongoDBConnector): Database connector
             articles (List[Dict[str, Any]]): Articles to store
+        Returns:
+            int: Number of articles actually stored/updated
         """
         if not articles:
             logger.warning(f"No articles to store for {self.category}")
-            return
+            return 0
         
         # Add metadata to articles
         timestamp = datetime.datetime.utcnow()
+        processed_articles = []
+        
         for article in articles:
-            article['category'] = self.category
-            article['source_url'] = self.url
-            article['scraped_at'] = timestamp
+            # Skip articles without URL (required for deduplication)
+            if not article.get('url'):
+                logger.warning(f"Skipping article without URL: {article.get('title', 'No title')}")
+                continue
+                
+            processed_article = article.copy()
+            processed_article.update({
+                'category': self.category,
+                'source_url': self.url,
+                'scraped_at': timestamp,
+                'type': 'news'  # Add type for consistency
+            })
+            
+            # Ensure required fields exist
+            if not processed_article.get('title'):
+                processed_article['title'] = 'No title available'
+            if not processed_article.get('source'):
+                processed_article['source'] = 'Unknown'
+            
+            processed_articles.append(processed_article)
+        
+        if not processed_articles:
+            logger.warning(f"No valid articles to store for {self.category}")
+            return 0
         
         collection_name = os.getenv("NEWS_COLLECTION", "news")
         
         try:
-            db_connector.insert_many(collection_name, articles)
-            logger.info(f"Stored {len(articles)} {self.category} articles in the {collection_name} collection")
+            # Use upsert_many method to prevent duplicates
+            result = db_connector.upsert_many(collection_name, processed_articles, unique_field="url")
+            total_stored = result["upserted"] + result["updated"]
+            
+            logger.info(f"Stored {total_stored} {self.category} articles in the {collection_name} collection "
+                       f"(New: {result['upserted']}, Updated: {result['updated']})")
+            
+            return total_stored
+            
         except Exception as e:
             logger.error(f"Error storing {self.category} articles in database: {e}")
-            
-        client = db_connector.client  
-        print("Databases on server:", client.list_database_names())
-        db = client[db_connector.database_name]  
-        print("Collections in that DB:", db.list_collection_names())
+            return 0
     
     def generate_metrics(self, url: str) -> Dict[str, int]:
         """
@@ -150,11 +178,9 @@ class NewsScraper(ABC):
             "Total_shares": int(base_value * shares_scale * share_factor)
         }
 
-
 # ----------------a. NewsAPI Example-----------------------
 
 class NewsAPIScraper(NewsScraper):
-
     """Using the NewsAPI to fetch articles about a specific topic."""
 
     def __init__(self, category='technology', page_size=20, max_pages=2, country='us', language='en'):
@@ -196,78 +222,105 @@ class NewsAPIScraper(NewsScraper):
                 response.raise_for_status()
                 data = response.json()
                 
+                # Check if API request was successful
+                if data.get('status') != 'ok':
+                    logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
+                    continue
+                
                 articles = data.get("articles", [])
                 if not articles:
+                    logger.info(f"No more articles found for {self.category} on page {page}")
                     break
                 
+                processed_articles = []
                 for raw in articles:
-                    article_url = raw.get("url")
-                    article = {
-                        "url": article_url,
-                        "title": raw.get("title"),
-                        "description": raw.get("description"),
-                        "content": raw.get("content"),
-                        "author": raw.get("author"),
-                        "source": raw.get("source", {}).get("name"),
-                        "published_at": raw.get("publishedAt"),
-                        "source_type": "newsapi", 
-                        "country": self.country, 
-                        "News_metrics": self.generate_metrics(article_url)
-                        
-                    }
+                    # Skip articles without URL or title
+                    if not raw.get('url') or not raw.get('title'):
+                        continue
                     
-                    if article["url"]:  # Only add if URL exists
-                        all_articles.append(article)
+                    # Skip articles with '[Removed]' content (NewsAPI removes some content)
+                    if raw.get('title') == '[Removed]' or raw.get('description') == '[Removed]':
+                        continue
+                    
+                    article_url = raw.get("url")
+
+                    def safe_strip(value):
+                        return value.strip() if value and isinstance(value, str) else ""
+
+                    article = {
+                    "url": safe_strip(article_url),
+                    "title": safe_strip(raw.get("title")),
+                    "description": safe_strip(raw.get("description")),
+                    "content": safe_strip(raw.get("content")),
+                    "author": safe_strip(raw.get("author")) or "Unknown",
+                    "source": raw.get("source", {}).get("name") or "NewsAPI",
+                    "published_at": raw.get("publishedAt") or "",
+                    "url_to_image": raw.get("urlToImage") or "",
+                    "source_type": "newsapi", 
+                    "country": self.country, 
+                    "News_metrics": self.generate_metrics(article_url)
+                    }
+                    if article["url"] and article["title"]:
+                        processed_articles.append(article)
                 
-                logger.info(f"Page {page}: processed {len(articles)} articles from NewsAPI")
-                sleep(1)  # Be kind to the API
+                all_articles.extend(processed_articles)
+                logger.info(f"Page {page}: processed {len(processed_articles)} articles from NewsAPI")
+                
+                # Add delay between requests to be respectful to the API
+                if page < self.max_pages:
+                    sleep(1)
         
+        except requests.RequestException as e:
+            logger.error(f"Error fetching articles from NewsAPI: {e}")
         except Exception as e:
-            logger.error(f"Error extracting articles from NewsAPI: {e}")
+            logger.error(f"Unexpected error in NewsAPI scraper: {e}")
         
         return all_articles
     
-    def run_for_multiple_categories(self, categories, db_connector):
+    def run_for_multiple_categories(self, categories: List[str], db_connector: MongoDBConnector) -> int:
         """
         Run the scraper for multiple categories.
         
         Args:
             categories (List[str]): List of categories to scrape
             db_connector (MongoDBConnector): Database connector
+        Returns:
+            int: Total number of articles stored
         """
         total_articles = 0
         
         for category in categories:
             logger.info(f"Fetching articles for category: {category}")
+            
             # Update the category for this run
             self.category = category
             
             # Extract and store articles
             articles = self.extract_articles()
-            self.store_articles(db_connector, articles)
-            total_articles += len(articles)
+            stored_count = self.store_articles(db_connector, articles)
+            total_articles += stored_count
+            
+            # Add delay between categories to be respectful to the API
+            sleep(2)
         
         logger.info(f"Completed scraping from NewsAPI. Total articles: {total_articles}")
-
+        return total_articles
 
 # ----Main function to run news scraper------
 
 if __name__ == "__main__":
-
     try:
         # MongoDB connector
         db_connector = MongoDBConnector()
+        
+        # Ensure indexes are created
+        db_connector.ensure_indexes()
 
         # NewsAPI scraper
         logger.info("Running NewsAPI scraper...")
         newsapi_scraper = NewsAPIScraper()
-        newsapi_scraper.run_for_multiple_categories(NEWS_CATEGORIES, db_connector)
-        logger.info(f"Completed all scraping tasks.")
+        total_stored = newsapi_scraper.run_for_multiple_categories(NEWS_CATEGORIES, db_connector)
+        logger.info(f"Completed all scraping tasks. Total articles stored: {total_stored}")
 
     except Exception as e:
-
         logger.error(f"An error occurred: {e}")
-
-
-
-        

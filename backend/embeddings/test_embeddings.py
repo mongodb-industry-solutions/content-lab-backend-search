@@ -6,9 +6,10 @@
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import time
+import random
 
 # sys.path hack to reach the modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +17,7 @@ from db.mdb import MongoDBConnector
 from bedrock.cohere_embeddings import BedrockCohereEnglishEmbeddings
 from _vector_search_idx_creator import VectorSearchIDXCreator
 from embeddings.process_embeddings import ContentEmbedder
+from .process_embeddings import ContentEmbedder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -148,51 +150,77 @@ def convert_query_to_embedding(query_text: str):
         logger.error(f"Error generating embedding: {e}")
         return None
 
-def search_similar_content(query_embedding, limit: int = 5):
-    """Search for similar content in the news and reddit collections.
+# Search for similar content in the news and reddit collections.
+def search_similar_content(query_embedding, limit: int = 5, enable_diversity: bool = True):
+    """
+    Search for similar content with optional simple diversity.
+    
     Args:
-        query_embedding: List[float], the query embedding to search for
-        limit: int, the maximum number of results to return
+        query_embedding: The query embedding vector
+        limit: Number of results per collection
+        enable_diversity: Whether to enable diversity (True) or just return most similar (False)
     Returns:
-        Dict[str, List[Dict[str, Any]]]: The search results
+        Dict containing search results from each collection
     """
     db = MongoDBConnector()
-    all_results: Dict[str, List[Dict[str, Any]]] = {}
+    all_results = {}
     collection_names = ["news", "reddit_posts"]
-
+    
+    # Get more candidates if diversity is enabled
+    search_limit = limit * 3 if enable_diversity else limit
+    
     for collection_name in collection_names:
-        collection = db.get_collection(collection_name)
-        pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": "semantic_search_embeddings",
-                    "queryVector": query_embedding,
-                    "path": "embedding",
-                    "limit": limit,
-                    "numCandidates": limit * 4
-                }
-            },
-            {
-                "$project": {
-                   "_id": 1,
-                   "title": 1,
-                   "description": 1,
-                   "content": 1,
-                   "url": 1,
-                   "category": 1,
-                   "subreddit": 1,
-                   "comments": 1,
-                   "score": { "$meta": "vectorSearchScore" }
-                }
-            }
-        ]
         try:
-            results = list(collection.aggregate(pipeline))
-            logger.info(f"Found {len(results)} results in {collection_name}")
+            collection = db.get_collection(collection_name)
+            
+            # Get more results than needed
+            pipeline = [
+                {
+                    "$vectorSearch": {
+                        "index": "vector_index",
+                        "path": "embedding",
+                        "queryVector": query_embedding,
+                        "numCandidates": search_limit * 2,
+                        "limit": search_limit
+                    }
+                },
+                {
+                    "$addFields": {
+                        "similarity_score": {"$meta": "vectorSearchScore"}
+                    }
+                },
+                {
+                    "$match": {
+                        "embedding": {"$exists": True},
+                        "title": {"$exists": True, "$ne": ""}
+                    }
+                }
+            ]
+            
+            candidates = list(collection.aggregate(pipeline))
+            logger.info(f"Found {len(candidates)} candidates in {collection_name}")
+            
+            # Super simple diversity implementation:
+            if enable_diversity and len(candidates) > limit:
+                # Take top result to ensure relevance
+                top_result = candidates[0]
+                
+                # Randomly sample from the rest (excluding the top result)
+                remaining = random.sample(candidates[1:], min(limit-1, len(candidates)-1))
+                
+                # Combine top result with random sample
+                results = [top_result] + remaining
+            else:
+                # Just return top results by similarity
+                results = candidates[:limit]
+                
             all_results[collection_name] = results
+            logger.info(f"Selected {len(results)} results from {collection_name}")
+            
         except Exception as e:
             logger.error(f"Error searching {collection_name}: {e}")
             all_results[collection_name] = []
+    
     return all_results
 
 def display_results(results, query: str, collection_type: str):

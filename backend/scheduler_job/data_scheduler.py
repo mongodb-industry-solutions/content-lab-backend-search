@@ -285,7 +285,6 @@ def process_embeddings():
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
 
-
 # ------ 4. Targeted Queries --------- 
 
 def generate_targeted_query(subreddit):

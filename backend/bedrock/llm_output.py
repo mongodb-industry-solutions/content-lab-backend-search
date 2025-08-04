@@ -8,6 +8,7 @@ import sys
 import json
 import re
 import logging
+import hashlib
 from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
@@ -60,6 +61,62 @@ class ContentAnalyzer:
         text = re.sub(r'\'', '"', text)      
         
         return text
+    
+    # -------- Deduplication Logic Methods --------
+
+    def _generate_suggestion_id(self, topic: str, url: str, source_query: str) -> str:
+        """
+        Generate a consistent ID for a suggestion based on topic, URL, and query.
+        This helps identify duplicate suggestions.
+        
+        Args:
+            topic: str, the topic of the suggestion
+            url: str, the URL of the source content
+            source_query: str, the query that generated this suggestion
+        Returns:
+            str: A unique identifier for this suggestion
+        """
+        # Create a consistent hash from key fields
+        content = f"{topic.lower().strip()}|{url}|{source_query.lower().strip()}"
+        return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+    def _check_suggestion_exists(self, db_connector: MongoDBConnector, suggestion_id: str) -> bool:
+        """
+        Check if a suggestion with the given ID already exists in the database.
+        
+        Args:
+            db_connector: MongoDBConnector, the database connector
+            suggestion_id: str, the ID to check for
+        Returns:
+            bool: True if suggestion exists, False otherwise
+        """
+        collection = db_connector.get_collection(SUGGESTION_COLLECTION)
+        existing = collection.find_one({"suggestion_id": suggestion_id})
+        return existing is not None
+
+    def _is_similar_suggestion(self, db_connector: MongoDBConnector, topic: str, label: str, source_query: str) -> bool:
+        """
+        Check if a similar suggestion already exists based on topic similarity.
+        
+        Args:
+            db_connector: MongoDBConnector, the database connector
+            topic: str, the topic to check
+            label: str, the label/category
+            source_query: str, the source query
+        Returns:
+            bool: True if similar suggestion exists, False otherwise
+        """
+        collection = db_connector.get_collection(SUGGESTION_COLLECTION)
+        
+        # Check for exact topic match with same query and label
+        similar = collection.find_one({
+            "topic": {"$regex": f"^{re.escape(topic)}$", "$options": "i"},
+            "label": label,
+            "source_query": source_query
+        })
+        
+        return similar is not None
+
 
     # -------- Prompt Formatting Methods --------
 
@@ -303,11 +360,12 @@ class ContentAnalyzer:
     
     # Analyze the search results
 
-    def analyze_search_results(self, query: str) -> Dict[str, List[Dict[str, Any]]]:
+    def analyze_search_results(self, query: str, enable_diversity: bool = True) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Analyze the search results.
+        Analyze the search results with simple diversity option.
         Args:
             query: str, the query to analyze
+            enable_diversity: bool, whether to enable diverse results
         Returns:
             Dict[str, List[Dict[str, Any]]]: The analyzed search results
         """
@@ -316,7 +374,8 @@ class ContentAnalyzer:
             logger.error("Failed to generate embedding for query")
             return {"suggestions": []} 
 
-        all_results = search_similar_content(query_embedding, 2)
+        # Use simple diversity parameter
+        all_results = search_similar_content(query_embedding, 2, enable_diversity)
         news_results = all_results.get("news", [])
         reddit_results = all_results.get("reddit_posts", [])
 
@@ -344,13 +403,13 @@ class ContentAnalyzer:
     def store_analysis(self, db_connector: MongoDBConnector, analysis: Dict[str, List[Dict[str, Any]]], 
                   query: str = None) -> Dict[str, int]:
         """
-        Store the analysis results in MongoDB.
+        Store the analysis results in MongoDB with deduplication logic.
         Args:
             db_connector: MongoDBConnector, the database connector
             analysis: Dict[str, List[Dict[str, Any]]], the analysis results to store
             query: str, the query that was used to generate the analysis
         Returns:
-            Dict[str, int]: The number of documents stored
+            Dict[str, int]: The number of documents stored (new vs updated)
         """
         if not analysis:
             logger.warning("No analysis results to store")
@@ -365,28 +424,74 @@ class ContentAnalyzer:
                 "news": "news_analysis",
                 "reddit": "reddit_analysis"
             }
-            
-            # Process each content type in a single loop
+            # Helper function for safe string processing
+            def safe_strip(value):
+                return value.strip() if value and isinstance(value, str) else ""
+        
+            # Process each content type
             for content_key, analysis_type in content_types.items():
-                # Prepare documents for this content type
-                docs = []
+                new_suggestions = []
+                skipped_count = 0
+                
                 for item in analysis.get(content_key, []):
+                    topic = safe_strip(item.get("topic"))
+                    url = safe_strip(item.get("url")) if item.get("url") is not None else ""
+                    label = safe_strip(item.get("label"))
+                
+                    # Skip if missing required fields
+                    if not topic:
+                        logger.warning(f"Skipping suggestion with missing topic: {item}")
+                        continue
+
+                    url_for_id = url if url else f"reddit_post_{item.get('_id', 'unknown')}"
+                    # Generate unique suggestion ID
+                    suggestion_id = self._generate_suggestion_id(topic, url, query or "")
+                    
+                    # Check for exact duplicate
+                    if self._check_suggestion_exists(db_connector, suggestion_id):
+                        logger.debug(f"Skipping duplicate suggestion: {topic}")
+                        skipped_count += 1
+                        continue
+                    
+                    # Check for similar suggestions
+                    if self._is_similar_suggestion(db_connector, topic, label, query or ""):
+                        logger.debug(f"Skipping similar suggestion: {topic}")
+                        skipped_count += 1
+                        continue
+                    
+                    # Prepare document for storage
                     doc = item.copy()
                     if "source_type" in doc:
                         del doc["source_type"]
-                        
-                    doc["type"] = analysis_type
-                    doc["analyzed_at"] = timestamp
-                    if query:
-                        doc["source_query"] = query
-                        
-                    docs.append(doc)
+                    
+                    doc.update({
+                        "suggestion_id": suggestion_id,
+                        "type": analysis_type,
+                        "analyzed_at": timestamp,
+                        "source_query": query or "",
+                        "created_at": timestamp,
+                        "updated_at": timestamp
+                    })
+                    
+                    new_suggestions.append(doc)
                 
-                # Store documents if any exist
-                if docs:
-                    result = db_connector.insert_many(SUGGESTION_COLLECTION, docs)
-                    stored_counts[content_key] = len(result)
-                    logger.info(f"Stored {len(docs)} {content_key} analysis documents")
+                # Store only new, unique suggestions
+                if new_suggestions:
+                    try:
+                        # Use upsert_many to handle any remaining edge cases
+                        result = db_connector.upsert_many(
+                            SUGGESTION_COLLECTION, 
+                            new_suggestions, 
+                            unique_field="suggestion_id"
+                        )
+                        stored_counts[content_key] = result["upserted"] + result["updated"]
+                        logger.info(f"Stored {len(new_suggestions)} {content_key} analysis documents "
+                                   f"(New: {result['upserted']}, Updated: {result['updated']}, Skipped: {skipped_count})")
+                    except Exception as e:
+                        logger.error(f"Error storing {content_key} suggestions: {e}")
+                        stored_counts[content_key] = 0
+                else:
+                    logger.info(f"No new {content_key} suggestions to store (Skipped: {skipped_count})")
             
             return stored_counts
             
@@ -394,8 +499,7 @@ class ContentAnalyzer:
             logger.error(f"Error storing analysis results: {e}")
             return {"news": 0, "reddit": 0}
 
-
-    def analyze_and_store_search_results(self, query: str, db_connector: MongoDBConnector, label: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_and_store_search_results(self, query: str, db_connector: MongoDBConnector, label: Optional[str] = None, enable_diversity: bool = True) -> Dict[str, Any]:
         """
         Analyze search results for a query and store them in the database.
         Args:
@@ -406,7 +510,7 @@ class ContentAnalyzer:
             Dict[str, Any]: The analysis results
         """
         # Get analysis results with combined structure
-        result = self.analyze_search_results(query)
+        result = self.analyze_search_results(query, enable_diversity)
         
         # Split them back for storage
         suggested_results = {
@@ -414,7 +518,7 @@ class ContentAnalyzer:
             "reddit": [item for item in result["suggestions"] if item.get("source_type") == "reddit" and (not label or item.get("label") == label)]
         }
         
-        # Store results in MongoDB
+        # Store results in MongoDB with deduplication
         storage_counts = self.store_analysis(db_connector, suggested_results, query)
 
         # Filter results based on label
@@ -433,8 +537,11 @@ if __name__ == "__main__":
     analyzer = ContentAnalyzer()
     db_connector = MongoDBConnector()
 
+    # Ensure indexes are created
+    db_connector.ensure_indexes()
+
     # Analyze and store the search results for a query
-    query = "What is trending in Europe?"
+    query = "What is trending in Spain?"
     results = analyzer.analyze_and_store_search_results(query, db_connector)
 
     # Display the analysis results

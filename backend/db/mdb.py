@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from abc import abstractmethod
 from dotenv import load_dotenv
 import logging
+from pymongo.errors import DuplicateKeyError
 # Add logging for index creation
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,29 @@ class MongoDBConnector:
         result = collection.insert_many(documents)
         return result.inserted_ids
 
+    def upsert_one(self, collection_name, filter_query, document, upsert=True):
+        """Upsert a single document (update if exists, insert if not)."""
+        collection = self.get_collection(collection_name)
+        result = collection.replace_one(filter_query, document, upsert=upsert)
+        return result.upserted_id if result.upserted_id else result.modified_count
+
+    def upsert_many(self, collection_name, documents, unique_field="url"):
+        """Upsert multiple documents efficiently."""
+        collection = self.get_collection(collection_name)
+        upserted_count = 0
+        updated_count = 0
+        
+        for document in documents:
+            if unique_field in document:
+                filter_query = {unique_field: document[unique_field]}
+                result = collection.replace_one(filter_query, document, upsert=True)
+                if result.upserted_id:
+                    upserted_count += 1
+                else:
+                    updated_count += 1
+        
+        return {"upserted": upserted_count, "updated": updated_count}
+
     def find(self, collection_name, query={}, projection=None):
         """Retrieve documents from a collection."""
         collection = self.get_collection(collection_name)
@@ -74,6 +98,39 @@ class MongoDBConnector:
         result = collection.delete_many(query)
         return result.deleted_count
     
+    def create_unique_indexes(self):
+        """Create unique indexes to prevent duplicates at database level"""
+        indexes_config = {
+            "news": [
+                {"fields": [("url", 1)], "name": "unique_news_url", "unique": True, "sparse": True},
+                {"fields": [("title", 1), ("source", 1)], "name": "unique_news_title_source", "unique": True, "sparse": True}
+            ],
+            "reddit_posts": [
+                {"fields": [("url", 1)], "name": "unique_reddit_url", "unique": True, "sparse": True},
+                {"fields": [("title", 1), ("subreddit", 1)], "name": "unique_reddit_title_subreddit", "unique": True, "sparse": True}
+            ],
+            "suggestions": [
+                {"fields": [("topic", 1), ("source_query", 1), ("label", 1)], "name": "unique_suggestion_topic_query_label", "unique": True, "sparse": True},
+                {"fields": [("url", 1), ("source_query", 1)], "name": "unique_suggestion_url_query", "unique": True, "sparse": True}
+            ]
+        }
+        for collection_name, indexes in indexes_config.items():
+            collection = self.get_collection(collection_name)
+            
+            for index_config in indexes:
+                try:
+                    collection.create_index(
+                        index_config["fields"],
+                        name=index_config["name"],
+                        unique=index_config["unique"],
+                        sparse=index_config["sparse"],
+                        background=True
+                    )
+                    logger.info(f"Created unique index '{index_config['name']}' for '{collection_name}'")
+                except Exception as e:
+                    # Index might already exist, which is fine
+                    logger.info(f"Index '{index_config['name']}' for '{collection_name}': {e}")
+                    
     def create_duplicate_detection_indexes(self):
         """Create indexes for efficient duplicate detection and cleanup operations"""
         collections = ["news", "reddit_posts", "suggestions"]
@@ -101,3 +158,8 @@ class MongoDBConnector:
             logger.info("All indexes ensured successfully")
         except Exception as e:
             logger.error(f"Error ensuring indexes: {e}")
+    
+    def get_current_timestamp(self):
+        """Get current UTC timestamp"""
+        from datetime import datetime
+        return datetime.utcnow()

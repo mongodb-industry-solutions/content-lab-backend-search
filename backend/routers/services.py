@@ -26,7 +26,8 @@ class SearchRequest(BaseModel):
     query: str
     limit: int = 5
     label: Optional[str] = None
-
+    enable_diversity: bool = True
+    
 # TopicRequest class to define the topic request.
 class TopicRequest(BaseModel):
     topic: str
@@ -39,7 +40,7 @@ async def analyze_content(request: SearchRequest):
     """
     try:
         analyzer = ContentAnalyzer()
-        results = analyzer.analyze_and_store_search_results(request.query, db, request.label)
+        results = analyzer.analyze_and_store_search_results(request.query, db, request.label, request.enable_diversity)
         
         return {
             "query": request.query,
