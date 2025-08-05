@@ -194,36 +194,18 @@ class RedditScraper:
         return self.extract_posts_with_diverse_sorting()
 
     def store(self, db: MongoDBConnector) -> int:
-        """Store posts in the database
-        Args:
-            db: MongoDBConnector object
-        Returns:
-            int: Number of posts stored
         """
-        col = db.get_collection(REDDIT_COLLECTION)
-        # Using the new diverse sorting method
-        posts = self.extract_posts_with_diverse_sorting()
-        inserted = 0
-        for p in posts:
-            col.replace_one({"_id": p["_id"]}, p, upsert=True)
-            inserted += 1
-        return inserted
-
-    def store(self, db: MongoDBConnector) -> int:
-        """Store posts in the database
-        Args:
-            db: MongoDBConnector object
-        Returns:
-            int: Number of posts stored
+        Store posts in the database
+        :param db: MongoDBConnector instance
+        :return: int - Number of posts inserted
         """
-        col = db.get_collection(REDDIT_COLLECTION)
         posts = self.extract_posts()
         inserted = 0
         for p in posts:
-            col.replace_one({"_id": p["_id"]}, p, upsert=True)
+            db.upsert_one(REDDIT_COLLECTION, {"_id": p["_id"]}, p)
             inserted += 1
+        
         return inserted
-
     
 # ----- Main function to run social listening scraper ------
 

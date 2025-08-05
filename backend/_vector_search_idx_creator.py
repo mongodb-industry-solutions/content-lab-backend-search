@@ -24,6 +24,14 @@ class VectorSearchIDXCreator(MongoDBConnector):
         super().__init__(uri, database_name, appname)
         self.collection_name = collection_name
         self.collection = self.get_collection(self.collection_name)
+        
+        # we want to make sure that the supporting indexes exist for efficient vector search operations
+        try:
+            self.create_duplicate_detection_indexes()
+            logger.info(f"Provided supporting indexes for vector search on '{collection_name}'")
+        except Exception as e:
+            logger.info(f"Index check for vector search: {e}")
+            
         logger.info("VectorSearchIDXCreator initialized")
 
     def create_index(self, index_name: str, vector_field: str, dimensions: int = 1024, similarity_metric: str = "cosine") -> dict:
@@ -91,5 +99,4 @@ if __name__ == "__main__":
         )
     # this should be the result.
     print(result)
-
-
+    logger.info("Vector search index creation completed.")

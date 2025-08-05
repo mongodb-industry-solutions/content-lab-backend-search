@@ -118,10 +118,10 @@ def cleanup_suggestions(retention_days: int = 5, max_docs: int = 100):
     except Exception as e:
         logger.error(f"Error removing old suggestions: {e}")
 
-def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: int = 250):
+def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: int = 300):
     """
     Removes old documents older than 10 days. 
-    Maintains minimum of 250 douments in the collection.
+    Maintains minimum of 300 documents in the collection.
     Runs after the News and Reddit scrapers.
     This is a generic cleanup function for any collection.
     It will:
@@ -421,9 +421,11 @@ if __name__ == "__main__":
         logger.info("MongoDB connection successful")
 
         # Ensuring indexes are created for efficient duplicate detection
+        db_connector.create_unique_indexes()
         db_connector.ensure_indexes()
 
         log_scheduler_status()
+        
         logger.info(f"Scheduler overview: {schedule}")
 
         while True:

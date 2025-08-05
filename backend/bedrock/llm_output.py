@@ -364,10 +364,10 @@ class ContentAnalyzer:
                 
                 # Store documents if any exist
                 if docs:
-                    result = db_connector.insert_many(SUGGESTION_COLLECTION, docs)
-                    stored_counts[content_key] = len(result)
-                    logger.info(f"Stored {len(docs)} {content_key} analysis documents")
-            
+                    result = db_connector.upsert_many(SUGGESTION_COLLECTION, docs, unique_field="url")
+                    stored_counts[content_key] = result["upserted"] + result["updated"]
+                    logger.info(f"Stored {result['upserted']} new and updated {result['updated']} {content_key} analysis documents")
+                            
             return stored_counts
             
         except Exception as e:

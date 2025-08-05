@@ -98,8 +98,8 @@ class NewsScraper(ABC):
         collection_name = os.getenv("NEWS_COLLECTION", "news")
         
         try:
-            db_connector.insert_many(collection_name, articles)
-            logger.info(f"Stored {len(articles)} {self.category} articles in the {collection_name} collection")
+            result = db_connector.upsert_many(collection_name, articles, unique_field="url")
+            logger.info(f"Stored {result['upserted']} new and updated {result['updated']} {self.category} articles")
         except Exception as e:
             logger.error(f"Error storing {self.category} articles in database: {e}")
             
