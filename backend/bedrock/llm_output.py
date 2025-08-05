@@ -121,30 +121,16 @@ class ContentAnalyzer:
     # -------- Prompt Formatting Methods --------
 
     def _format_news_prompt(self, snippets: List[str], ids: List[str], urls: List[str]) -> str:
-        """Prompt template with few-shot example for news articles.
-        Args:
-            snippets: List[str], the snippets to format
-            ids: List[str], the ids of the snippets
-            urls: List[str], the urls of the snippets
-        Returns:
-            str: The formatted prompt
-        """
-        
-        # Clear system context
-        
         header = (
             "You are a precise news analyst trained to extract structured information. "
-            "I need you to analyze, understand the news articles contexually and extract specific fields in a consistent JSON format."
+            "Analyze the news articles contextually and extract specific fields in a consistent JSON format."
         )
-        
-        # A few-shot example
         example = (
             "EXAMPLE INPUT:\n"
             "1. AI Ethics Group Warns of Risks in Healthcare Applications\n"
             "A leading AI ethics organization released a report highlighting concerns about rapid deployment "
             "of AI systems in healthcare without proper validation or oversight.\n"
             "url: https://example.com/ai-ethics-healthcare\n\n"
-            
             "EXAMPLE OUTPUT:\n"
             "[\n"
             "  {\n"
@@ -154,73 +140,37 @@ class ContentAnalyzer:
             "    \"label\": \"technology\",\n"
             "    \"url\": \"https://example.com/ai-ethics-healthcare\"\n"
             "  }\n"
-            "]\n\n"
-            "NOW ANALYZE THESE ARTICLES:"
+            "]\n"
+            "---END OF EXAMPLE---\n"
         )
-        
-        # Format the articles to analyze
         items = []
         for idx, (_, snippet, url) in enumerate(zip(ids, snippets, urls), 1):
             items.append(f"{idx}. {snippet}\nurl: {url}")
-        
         body = "\n\n".join(items)
-        
-        # Detailed instructions
         task = (
-            "\n\nFor each article above, create a JSON object with these fields:\n"
+            "\n\nIMPORTANT:\n"
+            "- Do NOT use any URLs or content from the example above. Only use the URLs and content from the articles provided below.\n"
+            "- Your output MUST be a single valid JSON array of objects, and NOTHING ELSE.\n"
+            "- Do NOT include any explanation, introductory text, or comments before or after the JSON array.\n"
+            "- Do NOT repeat the example in your output.\n"
+            "- Use double quotes (\") for all keys and string values in the JSON.\n"
+            "- If a string value contains double quotes, escape them with a backslash (e.g., \"some \\\"quoted\\\" text\").\n"
+            "- Ensure the JSON is properly formatted with correct commas and brackets.\n"
+            "- The output should be directly parsable by Python's json.loads().\n"
+            "\nFor each article above, create a JSON object with these fields:\n"
             "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
             "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
             "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
-            "4. \"label\": MUST be EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\"] - NO OTHER VALUES ALLOWED. Choose the closest match even if not perfect.\n"
-            "5. \"url\": The source URL\n\n"
-            
-            "CRITICAL LABEL REQUIREMENTS:\n"
-            "- You MUST use only these 5 labels: technology, business, health, sports\n"
-            "- If content doesn't fit any specific category perfectly, use \"general\"\n"
-            "- Crime/legal stories →  business (depending on context)\n"
-            "- Culture topics → general or entertainment (depending on focus)\n"
-            "- Politics → business (depending on focus)\n"
-            "- Science → technology or health (depending on application)\n"
-            "- Mixed topics that span categories → general\n"
-            "- NEVER create new categories or use labels not in the list\n\n"
-            "- When in doubt, choose \"general\"\n\n"
-            
-            "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
-            "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
+            "5. \"url\": The source URL\n"
         )
-        
-        return f"{header}\n\n{example}\n\n{body}{task}"
+        return f"{header}\n\n{example}\n{body}{task}"
 
     def _format_reddit_prompt(self, snippets: List[str], ids: List[str], urls: List[Optional[str]]) -> str:
-        """
-        The prompt template with few-shot example for Reddit posts.
-        Args:
-            snippets: List[str], the snippets to format
-            ids: List[str], the ids of the snippets
-            urls: List[str], the urls of the snippets
-        Returns:
-            str: The formatted prompt
-        """
-        
-        # Clear system context  
         header = (
             "You are a community insights analyst specializing in Reddit discourse analysis. "
-            "Your expertise lies in identifying collective sentiment patterns, recognizing consensus vs. disagreement, "
-            "and extracting key perspectives from online communities. "
-            "Reddit discussions often contain diverse viewpoints, emotional undertones, and specialized terminology. "
-            "Your task is to analyze these posts with nuance, capturing both explicit statements and implicit community values. "
-            "Focus on what makes each discussion unique - the specific concerns, terminology, and sentiment that "
-            "characterize this particular community's approach to the topic. "
-            "Extract structured information that preserves the authentic voice of the community while "
-            "organizing it into consistent, comparable data fields."
+            "Analyze the Reddit posts contextually and extract specific fields in a consistent JSON format."
         )
-        
-        # Added a few-shot example
-
         example = (
             "EXAMPLE INPUT:\n"
             "1. Will AI replace programmers in the next 5 years?\n"
@@ -229,7 +179,6 @@ class ContentAnalyzer:
             "Comment: My company is already using GitHub Copilot and it's saved me hours of boilerplate coding. "
             "I think junior dev roles will definitely change.\n"
             "url: https://reddit.com/r/programming/example\n\n"
-            
             "EXAMPLE OUTPUT:\n"
             "[\n"
             "  {\n"
@@ -239,45 +188,35 @@ class ContentAnalyzer:
             "    \"label\": \"technology\",\n"
             "    \"url\": \"https://reddit.com/r/programming/example\"\n"
             "  }\n"
-            "]\n\n"
-            "NOW ANALYZE THESE REDDIT POSTS:"
+            "]\n"
+            "---END OF EXAMPLE---\n"
         )
-        
-        # Format the posts to analyze
         items = []
         for idx, (_, snippet, url) in enumerate(zip(ids, snippets, urls), 1):
             url_line = f"url: {url}" if url else "url: null"
             items.append(f"{idx}. {snippet}\n{url_line}")
-        
         body = "\n\n".join(items)
-        
-        # Detailed instructions
         task = (
-            "\n\nFor each Reddit post above, create a JSON object with these fields:\n"
+            "\nREAL INPUT:\n"
+            f"{body}\n"
+            "\nIMPORTANT:\n"
+            "- For each output object, the \"url\" field MUST be set to the exact URL provided for that Reddit post. Do NOT invent or reuse any example URLs.\n"
+            "- If the input does not provide a URL, set \"url\": null.\n"
+            "- Your output MUST be a single valid JSON array of objects, and NOTHING ELSE.\n"
+            "- Do NOT include any explanation, introductory text, or comments before or after the JSON array.\n"
+            "- Do NOT repeat the example in your output.\n"
+            "- Use double quotes (\") for all keys and string values in the JSON.\n"
+            "- If a string value contains double quotes, escape them with a backslash (e.g., \"some \\\"quoted\\\" text\").\n"
+            "- Ensure the JSON is properly formatted with correct commas and brackets.\n"
+            "- The output should be directly parsable by Python's json.loads().\n"
+            "\nFor each Reddit post above, create a JSON object with these fields:\n"
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
             "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
-            "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": MUST be EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - NO OTHER VALUES ALLOWED. Choose the closest match even if not perfect.\n"
-            "5. \"url\": The source URL or null if unavailable\n\n"
-            
-            "CRITICAL LABEL REQUIREMENTS:\n"
-            "- You MUST use only these 8 labels: technology, business, health, sports, politics, science, general, entertainment\n"
-            "- If content doesn't fit any specific category perfectly, use \"general\"\n"
-            "- Crime/legal discussions → general (depending on context)\n"
-            "- Culture topics → general or entertainment (depending on focus)\n"
-            "- Mixed topics that span categories → general\n"
-            "- NEVER create new categories or use labels not in the list\n\n"
-            "- When in doubt, choose \"general\"\n\n"
-            
-            "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
-            "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic\n"
+            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - choose the MOST specific match\n"
+            "5. \"url\": The source URL or null if unavailable\n"
         )
-        
-        return f"{header}\n\n{example}\n\n{body}{task}"
+        return f"{header}\n\n{example}\n{body}{task}"
     
     # News Processing 
 

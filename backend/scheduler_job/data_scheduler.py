@@ -68,7 +68,14 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
 
 def cleanup_suggestions(retention_days: int = 5, max_docs: int = 150):
     """
-    Remove old content suggestions but keep at least max_docs in the collection.
+    This is a specialized cleanup for the suggestions collection.
+    It will:
+    1. Remove suggestions older than retention_days.
+    2. Ensure the collection does not drop below max_docs.
+    3. If total suggestions are less than max_docs, skip cleanup.
+    4. If total suggestions are more than max_docs, remove the oldest suggestions.
+    
+    Note: This function is designed to be run after content suggestion generation.
     Args:
         retention_days: int, the number of days to keep the suggestions
         max_docs: int, the maximum number of documents to keep in the collection
@@ -111,9 +118,16 @@ def cleanup_suggestions(retention_days: int = 5, max_docs: int = 150):
     except Exception as e:
         logger.error(f"Error removing old suggestions: {e}")
 
-def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: int = 100):
+def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: int = 250):
     """
-    Remove up to (total - max_docs) docs older than retention_days, but never drop below max_docs.
+    Removes old documents older than 10 days. 
+    Maintains minimum of 250 douments in the collection.
+    Runs after the News and Reddit scrapers.
+    This is a generic cleanup function for any collection.
+    It will:
+    1. Remove documents older than retention_days.
+    2. Ensure the collection does not drop below max_docs.
+    3. If total documents are less than max_docs, skip cleanup.
     Args:
         collection_name: str, the name of the collection to cleanup
         retention_days: int, the number of days to keep the documents
@@ -164,7 +178,7 @@ def cleanup_duplicates():
     """
     Remove duplicate articles based on URL and title.
     Keeps the newest document (by _id) and removes older duplicates.
-    Runs every 2 days to maintain clean collections.
+    Runs on a daily basis to maintain clean collections.
     """
     logger.info("Starting duplicate cleanup job")
     collections = ["news", "reddit_posts", "suggestions"]
