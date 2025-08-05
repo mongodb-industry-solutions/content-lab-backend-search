@@ -114,7 +114,7 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
             "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
             "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
+            "4. \"label\": EXACTLY one of [\"general\", \"technology\", \"health\", \"sports\", \"politics\", \"science\", \"business\", \"entertainment\"] - choose the MOST specific match, use \"general\" if no other category fits\n"
             "5. \"url\": The source URL\n\n"
             
             "FORMAT REQUIREMENTS:\n"
@@ -189,7 +189,7 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
             "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
             "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - choose the MOST specific match\n"
+            "4. \"label\": EXACTLY one of [\"general\", \"technology\", \"health\", \"sports\", \"politics\", \"science\", \"business\", \"entertainment\"] - choose the MOST specific match, use \"general\" if no other category fits\n"
             "5. \"url\": The source URL or null if unavailable\n\n"
             
             "FORMAT REQUIREMENTS:\n"
