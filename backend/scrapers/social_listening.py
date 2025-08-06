@@ -138,7 +138,7 @@ class RedditScraper:
                 # Process submissions
                 for submission in submissions:
                     doc = {
-                        "_id":        submission.id,
+                        "reddit_id":  submission.id,
                         "url":        None if submission.is_self else submission.url,
                         "title":      submission.title,
                         "body":       submission.selftext or None,
@@ -182,10 +182,10 @@ class RedditScraper:
                 # If one sort method fails, continue with others
                 continue
         
-        # Remove duplicates based on post ID
+        # Remove duplicates based on reddit_post ID
         unique_posts = {}
         for post in all_posts:
-            unique_posts[post["_id"]] = post
+            unique_posts[post["reddit_id"]] = post
             
         return list(unique_posts.values())
 
@@ -202,7 +202,7 @@ class RedditScraper:
         posts = self.extract_posts()
         inserted = 0
         for p in posts:
-            db.upsert_one(REDDIT_COLLECTION, {"_id": p["_id"]}, p)
+            db.upsert_one(REDDIT_COLLECTION, {"reddit_id": p["reddit_id"]}, p)
             inserted += 1
         
         return inserted

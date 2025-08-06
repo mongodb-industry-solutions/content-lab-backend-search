@@ -111,6 +111,7 @@ class MongoDBConnector:
                 {"fields": [("title", 1), ("source", 1)], "name": "unique_news_title_source", "unique": True, "sparse": True}
             ],
             "reddit_posts": [
+                {"fields": [("reddit_id", 1)], "name": "unique_reddit_id", "unique": True, "sparse": True},  # Add this line
                 {"fields": [("url", 1)], "name": "unique_reddit_url", "unique": True, "sparse": True},
                 {"fields": [("title", 1), ("subreddit", 1)], "name": "unique_reddit_title_subreddit", "unique": True, "sparse": True}
             ],
@@ -119,6 +120,7 @@ class MongoDBConnector:
                 {"fields": [("url", 1), ("source_query", 1)], "name": "unique_suggestion_url_query", "unique": True, "sparse": True}
             ]
         }
+
         for collection_name, indexes in indexes_config.items():
             collection = self.get_collection(collection_name)
             
