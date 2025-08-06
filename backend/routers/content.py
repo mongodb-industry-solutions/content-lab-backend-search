@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from bson import ObjectId
 from db.mdb import MongoDBConnector
-
+import json
+from bson import json_util
 # Create the router
 router = APIRouter(
     prefix="/api/content",
@@ -55,6 +56,15 @@ async def get_suggestions(
         for result in results:
             if "_id" in result:
                 result["_id"] = str(result["_id"])
+
+        # ---- 
+        # Incase of a bad output detection, print JSON dump to console using the below code : uncomment them
+        # ----
+        # with open("search_results_dump.json", "w") as f:
+        #    json.dump(results, f, indent=2, default=str)
+        
+        # print(f"JSON dump saved to search_results_dump.json with {len(results)} results")
+        
         
         return {
             "count": len(results),

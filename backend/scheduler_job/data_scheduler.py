@@ -66,9 +66,16 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
         logger.error(f"Error enforcing max docs for '{collection_name}': {e}")
 
 
-def cleanup_suggestions(retention_days: int = 5, max_docs: int = 150):
+def cleanup_suggestions(retention_days: int = 5, max_docs: int = 100):
     """
-    Remove old content suggestions but keep at least max_docs in the collection.
+    This is a specialized cleanup for the suggestions collection.
+    It will:
+    1. Remove suggestions older than retention_days.
+    2. Ensure the collection does not drop below max_docs.
+    3. If total suggestions are less than max_docs, skip cleanup.
+    4. If total suggestions are more than max_docs, remove the oldest suggestions.
+    
+    Note: This function is designed to be run after content suggestion generation.
     Args:
         retention_days: int, the number of days to keep the suggestions
         max_docs: int, the maximum number of documents to keep in the collection
@@ -111,9 +118,16 @@ def cleanup_suggestions(retention_days: int = 5, max_docs: int = 150):
     except Exception as e:
         logger.error(f"Error removing old suggestions: {e}")
 
-def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: int = 100):
+def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: int = 300):
     """
-    Remove up to (total - max_docs) docs older than retention_days, but never drop below max_docs.
+    Removes old documents older than 10 days. 
+    Maintains minimum of 300 documents in the collection.
+    Runs after the News and Reddit scrapers.
+    This is a generic cleanup function for any collection.
+    It will:
+    1. Remove documents older than retention_days.
+    2. Ensure the collection does not drop below max_docs.
+    3. If total documents are less than max_docs, skip cleanup.
     Args:
         collection_name: str, the name of the collection to cleanup
         retention_days: int, the number of days to keep the documents
@@ -160,6 +174,87 @@ def cleanup_generic(collection_name: str, retention_days: int = 14, max_docs: in
     except Exception as e:
         logger.error(f"Error cleaning up '{collection_name}': {e}")
 
+# Cleanup duplicates in collections
+
+def cleanup_duplicates():
+    """
+    Remove duplicate articles based on URL and title.
+    Keeps the newest document (by _id) and removes older duplicates.
+    Respects minimum document limits for each collection.
+    Runs on a daily basis to maintain clean collections.
+    """
+    logger.info("Starting duplicate cleanup job")
+    
+    # Define minimum limits for each collection
+    collection_limits = {
+        "news": 250,
+        "reddit_posts": 250, 
+        "suggestions": 100
+    }
+    
+    total_removed = 0
+    
+    for collection_name, min_docs in collection_limits.items():
+        coll = db_connector.get_collection(collection_name)
+        total_docs = coll.count_documents({})
+        
+        # Skip if collection is at or below minimum limit
+        if total_docs <= min_docs:
+            logger.info(
+                f"Skipping duplicate cleanup for '{collection_name}': "
+                f"total docs ({total_docs}) ≤ minimum ({min_docs})"
+            )
+            continue
+        
+        # Find duplicates based on URL and title combination
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {
+                        "url": "$url",
+                        "title": "$title"
+                    },
+                    "docs": {"$push": {"id": "$_id", "created": "$_id"}},
+                    "count": {"$sum": 1}
+                }
+            },
+            {
+                "$match": {
+                    "count": {"$gt": 1}
+                }
+            }
+        ]
+        
+        duplicates = list(coll.aggregate(pipeline))
+        removed_count = 0
+        
+        for dup in duplicates:
+            # Sort by _id (newer ObjectIds are larger) and keep the newest
+            sorted_docs = sorted(dup["docs"], key=lambda x: x["created"], reverse=True)
+            docs_to_remove = [doc["id"] for doc in sorted_docs[1:]]  # Remove all except newest
+            
+            # Check if we can safely remove these duplicates without going below minimum
+            can_remove = min(len(docs_to_remove), total_docs - min_docs - removed_count)
+            if can_remove <= 0:
+                logger.info(
+                    f"Stopping duplicate removal for '{collection_name}': "
+                    "would drop below minimum limit"
+                )
+                break
+                
+            docs_to_actually_remove = docs_to_remove[:can_remove]
+            
+            try:
+                if docs_to_actually_remove:
+                    result = coll.delete_many({"_id": {"$in": docs_to_actually_remove}})
+                    removed_count += result.deleted_count
+            except Exception as e:
+                logger.error(f"Error removing duplicates from {collection_name}: {e}")
+                
+        logger.info(f"Removed {removed_count} duplicates from '{collection_name}'")
+        total_removed += removed_count
+    
+    logger.info(f"Duplicate cleanup completed: removed {total_removed} total duplicates")
 
 # -------- 2. Scheduler verification function --------
 
@@ -170,12 +265,13 @@ def log_scheduler_status():
     now = datetime.now(pytz.UTC)
     logger.info(f"Scheduler heartbeat at {now.isoformat()}")
     logger.info("Upcoming tasks:")
-    logger.info("- News scraper: daily at 04:00  UTC")
+    logger.info("- News scraper: daily at 04:00 UTC")
     logger.info("- Reddit scraper: daily at 04:15 UTC")
     logger.info("- Embedding processor: daily at 04:30 UTC")
     logger.info("- Content suggestion generator: daily at 04:45 UTC")
+    logger.info("- Duplicate cleanup: daily at 06:00 UTC")  
     logger.info("- Cleanup tasks: immediately after each job")
-    logger.info("- Status checks: every 4 hours (00:00, 04:00, … UTC)")
+    logger.info("- Status checks: every 4 hours (00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC)")
 
 # ------ 3. Scraper Jobs ---------   
 
@@ -231,7 +327,6 @@ def process_embeddings():
 
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
-
 
 # ------ 4. Targeted Queries --------- 
 
@@ -301,6 +396,9 @@ schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
 # content suggestion generator 
 schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
 
+# duplicate cleanup every 2 days at 05:00 UTC
+schedule.daily(datetime.strptime("06:00", "%H:%M").time(), cleanup_duplicates)
+
 # status checks every 4 hours
 for hour in range(0, 24, 4):
     schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
@@ -322,7 +420,12 @@ if __name__ == "__main__":
         db_connector.get_collection("test").find_one()
         logger.info("MongoDB connection successful")
 
+        # Ensuring indexes are created for efficient duplicate detection
+        db_connector.create_unique_indexes()
+        db_connector.ensure_indexes()
+
         log_scheduler_status()
+        
         logger.info(f"Scheduler overview: {schedule}")
 
         while True:

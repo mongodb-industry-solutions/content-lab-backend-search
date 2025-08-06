@@ -138,7 +138,7 @@ class RedditScraper:
                 # Process submissions
                 for submission in submissions:
                     doc = {
-                        "_id":        submission.id,
+                        "reddit_id":  submission.id,
                         "url":        None if submission.is_self else submission.url,
                         "title":      submission.title,
                         "body":       submission.selftext or None,
@@ -182,10 +182,10 @@ class RedditScraper:
                 # If one sort method fails, continue with others
                 continue
         
-        # Remove duplicates based on post ID
+        # Remove duplicates based on reddit_post ID
         unique_posts = {}
         for post in all_posts:
-            unique_posts[post["_id"]] = post
+            unique_posts[post["reddit_id"]] = post
             
         return list(unique_posts.values())
 
@@ -194,36 +194,18 @@ class RedditScraper:
         return self.extract_posts_with_diverse_sorting()
 
     def store(self, db: MongoDBConnector) -> int:
-        """Store posts in the database
-        Args:
-            db: MongoDBConnector object
-        Returns:
-            int: Number of posts stored
         """
-        col = db.get_collection(REDDIT_COLLECTION)
-        # Using the new diverse sorting method
-        posts = self.extract_posts_with_diverse_sorting()
-        inserted = 0
-        for p in posts:
-            col.replace_one({"_id": p["_id"]}, p, upsert=True)
-            inserted += 1
-        return inserted
-
-    def store(self, db: MongoDBConnector) -> int:
-        """Store posts in the database
-        Args:
-            db: MongoDBConnector object
-        Returns:
-            int: Number of posts stored
+        Store posts in the database
+        :param db: MongoDBConnector instance
+        :return: int - Number of posts inserted
         """
-        col = db.get_collection(REDDIT_COLLECTION)
         posts = self.extract_posts()
         inserted = 0
         for p in posts:
-            col.replace_one({"_id": p["_id"]}, p, upsert=True)
+            db.upsert_one(REDDIT_COLLECTION, {"reddit_id": p["reddit_id"]}, p)
             inserted += 1
+        
         return inserted
-
     
 # ----- Main function to run social listening scraper ------
 

@@ -114,15 +114,22 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word headline capturing the core subject\n"
             "2. \"keywords\": An array of EXACTLY 4 specific, relevant terms (avoid generic words like 'technology' or 'health')\n"
             "3. \"description\": One clear, information-dense sentence summarizing the key insight and indicating why the user should write about this topic (aim for 15-20 words)\n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"culture\", \"sports\"] - choose the MOST specific match\n"
+            "4. \"label\": EXACTLY one of [\"general\", \"technology\", \"health\", \"sports\", \"politics\", \"science\", \"business\", \"entertainment\"] - choose the MOST specific match, use \"general\" if no other category fits\n"
             "5. \"url\": The source URL\n\n"
             
             "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
+            "- Return a valid, parseable JSON array of objects\n"
+            "- Use double quotes for ALL keys and string values\n"
+            "- Follow these EXACT escaping rules:\n"
+            "  - For quotes within strings: use \\\" (backslash followed by quote)\n"
+            "  - For backslashes: use \\\\ (double backslash)\n"
+            "  - For newlines: use \\n\n"
+            "- ALWAYS add commas between array elements: [item1, item2]\n" 
+            "- ALWAYS add commas between object properties: {\"prop1\": value, \"prop2\": value}\n"
+            "- NEVER add trailing commas (e.g., {\"prop1\": value,} is invalid)\n"
             "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "- Check that all brackets and braces are properly balanced\n"
+            "- Test your output: every string value with quotes or backslashes must have proper escaping\n"
         )
         
         return f"{header}\n\n{example}\n\n{body}{task}"
@@ -189,15 +196,22 @@ class ContentAnalyzer:
             "1. \"topic\": A precise 3-5 word phrase capturing the community's focus\n"
             "2. \"keywords\": An array of EXACTLY 4 terms reflecting community perspectives (be specific, avoid generic terms)\n"
             "3. \"description\": One sentence capturing the primary community sentiment, opinion, or concern and indicating why the user should write about this topic  \n"
-            "4. \"label\": EXACTLY one of [\"technology\", \"business\", \"health\", \"sports\", \"politics\", \"science\", \"general\", \"entertainment\"] - choose the MOST specific match\n"
+            "4. \"label\": EXACTLY one of [\"general\", \"technology\", \"health\", \"sports\", \"politics\", \"science\", \"business\", \"entertainment\"] - choose the MOST specific match, use \"general\" if no other category fits\n"
             "5. \"url\": The source URL or null if unavailable\n\n"
             
             "FORMAT REQUIREMENTS:\n"
-            "- Return a JSON array of objects with structure exactly like the example\n"
-            "- Use double quotes for all keys and string values\n"
-            "- **IMPORTANT: If a string value contains double quotes, they MUST be escaped with a backslash (e.g., \"some \\\"quoted\\\" text\").**\n"
+            "- Return a valid, parseable JSON array of objects\n"
+            "- Use double quotes for ALL keys and string values\n"
+            "- Follow these EXACT escaping rules:\n"
+            "  - For quotes within strings: use \\\" (backslash followed by quote)\n"
+            "  - For backslashes: use \\\\ (double backslash)\n"
+            "  - For newlines: use \\n\n"
+            "- ALWAYS add commas between array elements: [item1, item2]\n" 
+            "- ALWAYS add commas between object properties: {\"prop1\": value, \"prop2\": value}\n"
+            "- NEVER add trailing commas (e.g., {\"prop1\": value,} is invalid)\n"
             "- Include NO explanatory text outside the JSON array\n"
-            "- Ensure proper JSON formatting with correct commas and brackets\n"
+            "- Check that all brackets and braces are properly balanced\n"
+            "- Test your output: every string value with quotes or backslashes must have proper escaping\n"
         )
         
         return f"{header}\n\n{example}\n\n{body}{task}"
@@ -364,10 +378,10 @@ class ContentAnalyzer:
                 
                 # Store documents if any exist
                 if docs:
-                    result = db_connector.insert_many(SUGGESTION_COLLECTION, docs)
-                    stored_counts[content_key] = len(result)
-                    logger.info(f"Stored {len(docs)} {content_key} analysis documents")
-            
+                    result = db_connector.upsert_many(SUGGESTION_COLLECTION, docs, unique_field="url")
+                    stored_counts[content_key] = result["upserted"] + result["updated"]
+                    logger.info(f"Stored {result['upserted']} new and updated {result['updated']} {content_key} analysis documents")
+                            
             return stored_counts
             
         except Exception as e:
