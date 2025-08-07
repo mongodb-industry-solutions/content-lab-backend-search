@@ -53,9 +53,17 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
     total = coll.count_documents({})
     if total <= max_docs:
         return
+    
+    # Use timestamp fields for proper sorting
+    timestamp_field = {
+        "news": "scraped_at",
+        "reddit_posts": "created_at",  
+        "suggestions": "analyzed_at"
+    }.get(collection_name, "scraped_at")  # Default to scraped_at
+    
     to_delete = total - max_docs
-    # find oldest docs by _id ascending
-    old_ids = coll.find({}, {"_id": 1}).sort("_id", 1).limit(to_delete)
+    # Find oldest docs by timestamp field
+    old_ids = coll.find({}, {"_id": 1}).sort(timestamp_field, 1).limit(to_delete)
     ids_to_delete = [doc["_id"] for doc in old_ids]
     try:
         res = coll.delete_many({"_id": {"$in": ids_to_delete}})
@@ -66,14 +74,18 @@ def enforce_max_docs(collection_name: str, max_docs: int = 100):
         logger.error(f"Error enforcing max docs for '{collection_name}': {e}")
 
 
-def cleanup_suggestions(retention_days: int = 5, max_docs: int = 100):
+# b. Cleanup suggestions collection
+
+def cleanup_suggestions(retention_days: int = 5, max_docs: int = 60):
     """
-    This is a specialized cleanup for the suggestions collection.
+    This is a time-based retention management specifically for the suggestions collection
     It will:
     1. Remove suggestions older than retention_days.
-    2. Ensure the collection does not drop below max_docs.
-    3. If total suggestions are less than max_docs, skip cleanup.
-    4. If total suggestions are more than max_docs, remove the oldest suggestions.
+    2. Maintains a minimum number of documents (default: 60) in the collection.
+    3. Uses analyzed_at timestamp field to determine document age
+    4. Is called immediately after generating new content suggestions
+    5. If total suggestions are less than max_docs, skip cleanup.
+    6. If total suggestions are more than max_docs, remove the oldest suggestions.
     
     Note: This function is designed to be run after content suggestion generation.
     Args:
@@ -92,8 +104,8 @@ def cleanup_suggestions(retention_days: int = 5, max_docs: int = 100):
         return
 
     cutoff = datetime.now(pytz.UTC) - timedelta(days=retention_days)
-    cutoff_oid = ObjectId.from_datetime(cutoff)
 
+    # Use actual timestamp field
     old_cursor = coll.find(
         {"analyzed_at": {"$lt": cutoff}},
         {"_id": 1}
@@ -117,6 +129,8 @@ def cleanup_suggestions(retention_days: int = 5, max_docs: int = 100):
         )
     except Exception as e:
         logger.error(f"Error removing old suggestions: {e}")
+
+# c. Cleanup generic function
 
 def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: int = 300):
     """
@@ -144,14 +158,25 @@ def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: in
         )
         return
 
+    # Define cutoff date
     cutoff = datetime.now(pytz.UTC) - timedelta(days=retention_days)
-    cutoff_oid = ObjectId.from_datetime(cutoff)
 
-    # Find all docs older than cutoff, sorted oldest first
+    # Use collection-specific timestamp fields
+    timestamp_field = {
+        "news": "scraped_at",
+        "reddit_posts": "created_at",  
+        "suggestions": "analyzed_at"
+    }.get(collection_name, "scraped_at")  # Default to scraped_at
+    
+    # Use the appropriate timestamp field
+    query = {timestamp_field: {"$lt": cutoff}}
+
+    # Find all docs older than cutoff, sorted by timestamp
     old_cursor = coll.find(
-        {"_id": {"$lt": cutoff_oid}},
+        query,
         {"_id": 1}
-    ).sort("_id", 1)
+    ).sort(timestamp_field, 1)
+    
     old_ids = [doc["_id"] for doc in old_cursor]
     older_count = len(old_ids)
 
@@ -189,7 +214,25 @@ def cleanup_duplicates():
     collection_limits = {
         "news": 250,
         "reddit_posts": 250, 
-        "suggestions": 100
+        "suggestions": 60
+    }
+
+    collection_configs = {
+        "news": {
+            "group_by": {"url": "$url", "title": "$title"},
+            "timestamp_field": "$scraped_at",
+            "match_condition": {"url": {"$ne": None}, "title": {"$ne": None}}
+        },
+        "reddit_posts": {
+            "group_by": {"reddit_id": "$reddit_id"},
+            "timestamp_field": "$created_at",
+            "match_condition": {"reddit_id": {"$ne": None}}
+        },
+        "suggestions": {
+            "group_by": {"topic": "$topic", "query": "$source_query"},
+            "timestamp_field": "$analyzed_at",
+            "match_condition": {"topic": {"$ne": None}}
+        }
     }
     
     total_removed = 0
@@ -205,16 +248,23 @@ def cleanup_duplicates():
                 f"total docs ({total_docs}) ≤ minimum ({min_docs})"
             )
             continue
+
+        # Get collection-specific configuration
+        config = collection_configs.get(collection_name)
+        if not config:
+            logger.warning(f"No duplicate detection config for '{collection_name}', skipping")
+            continue
         
-        # Find duplicates based on URL and title combination
+        # Find duplicates based on collection-specific grouping
         pipeline = [
+            {"$match": config["match_condition"]},
             {
                 "$group": {
-                    "_id": {
-                        "url": "$url",
-                        "title": "$title"
-                    },
-                    "docs": {"$push": {"id": "$_id", "created": "$_id"}},
+                    "_id": config["group_by"],
+                    "docs": {"$push": {
+                        "id": "$_id", 
+                        "timestamp": config["timestamp_field"]
+                    }},
                     "count": {"$sum": 1}
                 }
             },
@@ -229,11 +279,16 @@ def cleanup_duplicates():
         removed_count = 0
         
         for dup in duplicates:
-            # Sort by _id (newer ObjectIds are larger) and keep the newest
-            sorted_docs = sorted(dup["docs"], key=lambda x: x["created"], reverse=True)
-            docs_to_remove = [doc["id"] for doc in sorted_docs[1:]]  # Remove all except newest
+            # Sort by timestamp and keep the newest
+            def get_timestamp_value(doc):
+                if "timestamp" not in doc:
+                    return ""
+                return str(doc["timestamp"]) if doc.get("timestamp") is not None else ""
+                
+            sorted_docs = sorted(dup["docs"], key=get_timestamp_value, reverse=True)
+            docs_to_remove = [doc["id"] for doc in sorted_docs[1:]]  
             
-            # Check if we can safely remove these duplicates without going below minimum
+            # if we can safely remove these duplicates without going below minimum
             can_remove = min(len(docs_to_remove), total_docs - min_docs - removed_count)
             if can_remove <= 0:
                 logger.info(

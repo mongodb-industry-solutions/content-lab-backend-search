@@ -69,12 +69,6 @@ SUBREDDIT_TOPICS = {
         "celebrity news",
         "media industry"
     ],
-    "travel": [
-        "destination guides",
-        "travel experiences",
-        "tourism trends",
-        "travel tips"
-    ],
     "education": [
         "learning methods",
         "academic resources",
@@ -89,7 +83,7 @@ SUBREDDIT_TOPICS = {
     ]
 }
 
-POST_LIMIT = 15
+POST_LIMIT = 18
 COMMENT_LIMIT = 5
 
 # ------a. Reddit Scraper------
@@ -137,13 +131,15 @@ class RedditScraper:
                 
                 # Process submissions
                 for submission in submissions:
+                    created_at = datetime.utcfromtimestamp(submission.created_utc)
                     doc = {
                         "reddit_id":  submission.id,
                         "url":        None if submission.is_self else submission.url,
                         "title":      submission.title,
                         "body":       submission.selftext or None,
                         "author":     str(submission.author) if submission.author else None,
-                        "created_at": datetime.utcfromtimestamp(submission.created_utc),
+                        "created_at": created_at,
+                        "scraped_at": datetime.utcnow(),
                         "subreddit":  self.subreddit,
                         "source":     "Reddit",
                         "reddit_metrics": {
