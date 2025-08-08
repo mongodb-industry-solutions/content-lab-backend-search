@@ -106,6 +106,7 @@ async def get_draft_by_topic(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Save a draft document to the drafts collection
+
 @router.post("")
 async def save_draft(
     request: DraftRequest
@@ -196,5 +197,46 @@ async def delete_draft(
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Draft not found or access denied")
         return {"message": "Draft deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Publish a draft document to the preview collection
+
+@router.post("/publish")
+async def publish_draft(
+    request: DraftRequest
+):
+    """
+    Publish a draft document to the preview collection
+    """
+    try:
+        collection = db.get_collection("preview")
+        
+        # Create draft document
+        draft_data = {
+            "userId": request.userId,
+            "title": request.title,
+            "category": request.category,
+            "content": request.content,
+            "keywords": request.keywords,
+            "topicId": request.topicId,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        # Insert the draft
+        result = collection.insert_one(draft_data)
+        
+        # Get the created draft and return it
+        created_draft = collection.find_one({"_id": result.inserted_id})
+        created_draft["_id"] = str(created_draft["_id"])
+
+        preview_link = f"https://ist.media/post?preview={created_draft['_id']}"
+        # created_draft["preview_link"] = preview_link
+
+        return preview_link
+    
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
