@@ -35,6 +35,7 @@ if __name__ == "__main__":
     suggestions_before = db_connector.get_collection("suggestions").count_documents({})
 
     # cleanup_duplicates()
+    
     # Add after cleanup_duplicates call:
     news_after = db_connector.get_collection("news").count_documents({})
     reddit_after = db_connector.get_collection("reddit_posts").count_documents({})
