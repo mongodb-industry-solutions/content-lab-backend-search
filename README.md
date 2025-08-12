@@ -220,7 +220,7 @@ Before you begin, ensure you have met the following requirements:
 
 ### Step 1b: Set Up the Vector Search Index.
 
-1. Create the vector search index for the `news` and `reddit_posts`. You can do this using the MongoDB Atlas UI or by running the following python script located in the backend/embeddings/ directory: process_embeddings.py. Make sure to parametrize the script accordingly.
+1. Create the vector search index for the `news` and `reddit_posts`. You can do this using the MongoDB Atlas UI or by running the following python script located in the `backend/` directory: `_vector_search_idx_creator.py`. Make sure to parametrize the script accordingly for each collection.
 
 ### Step 2: Add MongoDB User
 
