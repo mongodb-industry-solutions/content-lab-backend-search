@@ -88,7 +88,7 @@ class VectorSearchIDXCreator(MongoDBConnector):
 # Example usage
 if __name__ == "__main__":
 
-    collections = ["news", "social_posts"]
+    collections = ["news", "reddit_posts"]
 
     for collection_name in collections:
         logger.info(f"Collection being proccessed: {collection_name}")
