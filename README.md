@@ -63,7 +63,7 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 
 ### Collections used in this demo. 
 
-####  Example documents for all collections are stored in JSON format under [`backend/db/collections/`]()
+####  Example documents for all collections are stored in JSON format under [`backend/db/collections/`](https://github.com/mongodb-industry-solutions/ist-media-internship-be/tree/main/backend/db/collections)
 
 - **news**  
   Normalized scraped news articles plus generated embedding vectors for semantic search.  
