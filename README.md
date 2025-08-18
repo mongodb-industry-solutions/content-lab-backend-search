@@ -265,7 +265,7 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >SUGGESTION_COLLECTION=suggestions
 >USER_PROFILES_COLLECTION=userProfiles
 >DRAFTS_COLLECTION=drafts
->PREVIEW_COLLECTION="preview"
+>PREVIEW_COLLECTION=preview
 >AWS_REGION=us-east-1
 >NEWSAPI_KEY=your_newsapi_key
 >TAVILY_API_KEYS=your_tavily_key1,your_tavily_key2
