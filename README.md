@@ -60,6 +60,30 @@ The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes 
 
 The Suggestion Engine combines user input, real-time data aggregation, semantic search, and advanced agents like Tavily to deliver relevant, actionable topic suggestions directly in the user interface.
 
+
+### Collections used in this demo. 
+
+####  Example documents for all collections are stored in JSON format under [`backend/db/collections/`]()
+
+- **news**  
+  Normalized scraped news articles plus generated embedding vectors for semantic search.  
+
+- **reddit_posts**  
+  Subreddit posts (and optionally comments) enriched with metadata and embeddings for cross-source semantic matching.  
+
+- **suggestions**  
+  AI-generated topic suggestions derived from aggregated news + Reddit relevance and LLM analysis.  
+
+- **drafts**  
+  User-authored draft content (HTML / rich text) that exists only pre-publication.  
+
+- **userProfiles**  
+  Per-user profile & preference data guiding filtering and tuning.  
+
+- **preview**  
+  Once the user clicks the **Publish** button, the drafts are stored as a clean version (with no HTML tags) in this collection and automatically connected to [IST Media](https://github.com/mongodb-industry-solutions/ist.media), where the article is published. You can explore that project as well.
+
+
 ## **Where Does MongoDB Shine?**
 
 1. **Document Model:** MongoDB's flexible document model (using BSON/JSON) is perfect for storing scraped data, which often varies in structure and fields. Each scraped item can be stored as a document, allowing easy updates and schema evolution. The flexible schema reduces development time by allowing you to change data structures on the fly, which is crucial when dealing with varying scraped content formats.
@@ -210,6 +234,7 @@ Before you begin, ensure you have met the following requirements:
      - `suggestions` (for storing AI-generated topic suggestions)
      - `drafts` (for storing user-created draft documents)
      - `userProfiles` (for storing user profile information and preferences)
+     - `preview` (Once the user clicks the **Publish** button, the drafts are stored as a clean version (with no HTML tags) in this collection and automatically connected to [IST Media](https://github.com/mongodb-industry-solutions/ist.media), where the article is published. You can explore that project as well.)
 
 5. **Create a MongoDB User**  
    - Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb-users/) to create a user with **readWrite** access to the `contentlab` database.
@@ -240,6 +265,7 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >SUGGESTION_COLLECTION=suggestions
 >USER_PROFILES_COLLECTION=userProfiles
 >DRAFTS_COLLECTION=drafts
+>PREVIEW_COLLECTION="preview"
 >AWS_REGION=us-east-1
 >NEWSAPI_KEY=your_newsapi_key
 >TAVILY_API_KEYS=your_tavily_key1,your_tavily_key2

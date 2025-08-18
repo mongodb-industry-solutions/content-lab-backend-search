@@ -1,0 +1,42 @@
+[{
+  "_id": {
+    "$oid": "6862a8988c0f7bf43af995a7"
+  },
+  "persona": "The Gen Z Voice",
+  "userName": "Helly R.",
+  "tone": "Casual, emoji-friendly, full of slang and pop culture references",
+  "styleTraits": [
+    "Short, punchy sentences",
+    "Uses memes, TikTok lingo, and GIF references",
+    "Often writes in listicles or \"hot take\" formats"
+  ],
+  "sampleText": "Real talk: if your morning routine doesn’t involve iced coffee and a mental breakdown, are you even adulting?"
+},
+{
+  "_id": {
+    "$oid": "6862a8988c0f7bf43af995a8"
+  },
+  "persona": "The Formal Expert",
+  "userName": "Mark S.",
+  "tone": "Polished, academic, appeals to professionals and older readers",
+  "styleTraits": [
+    "Long, structured paragraphs",
+    "Formal language with rich vocabulary",
+    "Analytical, often includes references or citations"
+  ],
+  "sampleText": "This development represents not merely a shift in consumer behavior, but a broader cultural reorientation toward digital permanence."
+},
+{
+  "_id": {
+    "$oid": "6862a8988c0f7bf43af995a9"
+  },
+  "persona": "The Conversational Analyst",
+  "userName": "Ms. Casey",
+  "tone": "Approachable but informed, perfect for millennial or curious general readers",
+  "styleTraits": [
+    "Clear explanations with personality",
+    "Mixes data with anecdotes",
+    "Uses rhetorical questions and metaphors"
+  ],
+  "sampleText": "Imagine your inbox as a party. Now imagine half the guests are trying to sell you crypto. That’s the modern email landscape."
+}]

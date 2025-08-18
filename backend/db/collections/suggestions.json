@@ -1,0 +1,100 @@
+[{
+  "_id": {
+    "$oid": "6891c8ec815c94751f33007d"
+  },
+  "topic": "Apple CEO's bombshell announcement",
+  "keywords": [
+    "product roadmap",
+    "market strategy",
+    "supply chain",
+    "competitive landscape"
+  ],
+  "description": "The Apple CEO reveals a surprising revelation about the company's future plans, sparking speculation and analysis among industry experts and investors.",
+  "label": "technology",
+  "url": "https://www.thestreet.com/technology/apple-ceo-drops-bombshell-about-its-future",
+  "type": "news_analysis",
+  "analyzed_at": {
+    "$date": "2025-08-15T04:45:53.199Z"
+  },
+  "source_query": "Trending discussions about education technology and academic resources in r/education"
+},
+{
+  "_id": {
+    "$oid": "6891c903815c94751f33008c"
+  },
+  "topic": "Montana as medical treatment hub",
+  "keywords": [
+    "experimental therapies",
+    "regulatory sandbox",
+    "patient access",
+    "medical tourism"
+  ],
+  "description": "Montana is pushing to become a hub for experimental medical treatments, aiming to attract patients and providers by offering a more permissive regulatory environment.",
+  "label": "health",
+  "url": "https://www.wsj.com/tech/biotech/the-push-to-make-montana-a-hub-for-experimental-medical-treatments-716e1992",
+  "type": "news_analysis",
+  "analyzed_at": {
+    "$date": "2025-08-14T04:45:48.748Z"
+  },
+  "source_query": "Trending discussions about research findings and scientific discoveries in r/science"
+},
+{
+  "_id": {
+    "$oid": "6891c90b815c94751f330091"
+  },
+  "topic": "Man Utd fans react to Matheus Cunha",
+  "keywords": [
+    "Matheus Cunha",
+    "Everton match",
+    "fan reactions",
+    "player performance"
+  ],
+  "description": "Manchester United fans have a lot to say about Matheus Cunha's performance against Everton, with many impressed by his display.",
+  "label": "sports",
+  "url": "https://www.unitedinfocus.com/match-coverage/man-utd-fans-have-lot-to-say-about-matheus-cunha-after-performance-vs-everton-this-clearly-shows-that-we/",
+  "type": "news_analysis",
+  "analyzed_at": {
+    "$date": "2025-08-15T04:45:56.113Z"
+  },
+  "source_query": "Trending discussions about Barcelona events and FC Barcelona updates in r/barcelona"
+},
+{
+  "_id": {
+    "$oid": "6891ce44ac1b2f767b8e4221"
+  },
+  "topic": "Microsoft's AI and core business growth",
+  "keywords": [
+    "cloud computing",
+    "enterprise software",
+    "AI applications",
+    "revenue diversification"
+  ],
+  "description": "Microsoft's AI initiatives are gaining traction, but its traditional software and cloud offerings remain the core drivers of the company's strong financial performance.",
+  "label": "business",
+  "url": "https://www.wsj.com/tech/ai/microsoft-is-an-ai-darling-but-its-core-businesses-are-booming-too-2213126f",
+  "type": "news_analysis",
+  "analyzed_at": {
+    "$date": "2025-08-14T04:45:34.032Z"
+  },
+  "source_query": "Trending discussions about AI developments and software engineering in r/technology"
+},
+{
+  "_id": {
+    "$oid": "6891ce53ac1b2f767b8e422a"
+  },
+  "topic": "Lionel Messi injury update",
+  "keywords": [
+    "Inter Miami",
+    "player condition",
+    "injury details",
+    "medical update"
+  ],
+  "description": "An insider reveals the latest information on Lionel Messi\"s injury status and his potential return to play for his new club, Inter Miami.",
+  "label": "sports",
+  "url": "https://athlonsports.com/soccer/lionel-messi-injury-update-insider-reveals-details-on-inter-miami-stars-condition",
+  "type": "news_analysis",
+  "analyzed_at": {
+    "$date": "2025-08-13T04:45:57.410Z"
+  },
+  "source_query": "Trending discussions about Barcelona events and FC Barcelona updates in r/barcelona"
+}]

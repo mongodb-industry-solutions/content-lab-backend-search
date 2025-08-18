@@ -1,0 +1,110 @@
+[{
+  "_id": {
+    "$oid": "6895bf8fd3a31ce21b130694"
+  },
+  "userId": "6862a8988c0f7bf43af995a8",
+  "title": "Montana as medical treatment hub",
+  "category": "health",
+  "content": "1. Opening Hook\n\nStart with: A compelling statistic or scenario related to Montana's push to become a medical treatment hub.\n\n2. Introduction & Context\n\nBrief overview: Explain how Montana is aiming to provide patients with greater access to cutting-edge experimental therapies, and the significance of this shift.\n\n3. Main Content Structure\n\nKey Point A: The Regulatory Environment in Montana\n\nFocus on: Montana's regulatory approach to experimental treatments, including any unique policies or initiatives that are attracting medical providers and patients.\n\nKey Point B: Opportunities for Patient Access\n\nInclude: How Montana's efforts are improving patient access to clinical trials and novel therapies, and the potential benefits for those seeking alternative treatment options.\n\nKey Point C: Challenges and Considerations\n\nEmphasize: Any potential risks, ethical concerns, or logistical hurdles that come with Montana's push to become a medical treatment hub.\n\n4. Conclusion & Call-to-Action\n\nWrap up with: A summary of Montana's role in the broader landscape of experimental medical treatments, and a call to action for readers to stay informed or get involved.",
+  "keywords": [
+    "experimental therapies",
+    "regulatory environment",
+    "patient access",
+    "clinical trial recruitment"
+  ],
+  "topicId": "6891c903815c94751f33008c",
+  "created_at": {
+    "$date": "2025-08-08T09:12:47.317Z"
+  },
+  "updated_at": {
+    "$date": "2025-08-08T09:12:47.317Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "6895c074d3a31ce21b130695"
+  },
+  "userId": "6862a8988c0f7bf43af995a8",
+  "title": "Anonymous online browsing",
+  "category": "technology",
+  "content": "1. Opening Hook\n\nStart with: A compelling statistic or scenario highlighting Montana's emergence as a hub for experimental medical treatments.\n\n2. Introduction & Context\n\nBrief overview: Explain how Montana is positioning itself to provide patients greater access to cutting-edge therapies, and the significance of this shift in the healthcare landscape.\n\n3. Main Content Structure\n\nKey Point A: Montana's Regulatory Environment\n\nFocus on: The state's efforts to create a favorable regulatory environment for experimental treatments, including legislative changes and partnerships with research institutions.\n\nKey Point B: Patient Access and Clinical Trial Recruitment\n\nInclude: How Montana is working to attract clinical trials and make it easier for patients to participate, improving their access to novel therapies.\n\nKey Point C: Potential Impact and Future Outlook\n\nEmphasize: The long-term implications of Montana's push to become a medical treatment hub, such as economic benefits, advancements in healthcare, and the state's role in shaping the future of experimental therapies.\n\n4. Conclusion & Call-to-Action\n\nWrap up with: A summary of the key points and a call for readers to follow the developments in Montana's healthcare landscape.",
+  "keywords": [
+    "experimental therapies",
+    "regulatory environment",
+    "patient access",
+    "clinical trial recruitment"
+  ],
+  "topicId": "6891c903815c94751f33008c",
+  "created_at": {
+    "$date": "2025-08-08T09:16:36.507Z"
+  },
+  "updated_at": {
+    "$date": "2025-08-08T09:16:36.507Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "6895c0a6d3a31ce21b130696"
+  },
+  "userId": "6862a8988c0f7bf43af995a8",
+  "title": "Anonymous online browsing",
+  "category": "technology",
+  "content": "DCw",
+  "keywords": [
+    "experimental therapies",
+    "regulatory environment",
+    "patient access",
+    "clinical trial recruitment"
+  ],
+  "topicId": "6891c903815c94751f33008c",
+  "created_at": {
+    "$date": "2025-08-08T09:17:26.532Z"
+  },
+  "updated_at": {
+    "$date": "2025-08-08T09:17:26.532Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "6895c0c7d3a31ce21b130697"
+  },
+  "userId": "6862a8988c0f7bf43af995a8",
+  "title": "Anonymous online browsing",
+  "category": "technology",
+  "content": "cewecc",
+  "keywords": [
+    "experimental therapies",
+    "regulatory environment",
+    "patient access",
+    "clinical trial recruitment"
+  ],
+  "topicId": "6891c903815c94751f33008c",
+  "created_at": {
+    "$date": "2025-08-08T09:17:59.963Z"
+  },
+  "updated_at": {
+    "$date": "2025-08-08T09:17:59.963Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "6895c13bd3a31ce21b130698"
+  },
+  "userId": "6862a8988c0f7bf43af995a8",
+  "title": "Anonymous online browsing",
+  "category": "technology",
+  "content": "cewecc",
+  "keywords": [
+    "experimental therapies",
+    "regulatory environment",
+    "patient access",
+    "clinical trial recruitment"
+  ],
+  "topicId": "6891c903815c94751f33008c",
+  "created_at": {
+    "$date": "2025-08-08T09:19:55.509Z"
+  },
+  "updated_at": {
+    "$date": "2025-08-08T09:19:55.509Z"
+  }
+}]
