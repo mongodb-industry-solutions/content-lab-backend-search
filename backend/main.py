@@ -21,16 +21,22 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Create the FastAPI application.
-app = FastAPI()
+# Defining the FastAPI app
+app = FastAPI(
+    title="Content Lab Search API", 
+    version="0.0.1",
+    redirect_slashes=False
+)
 
-# Add the CORS middleware.
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers to the client
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Include the routers.
@@ -42,28 +48,34 @@ app.include_router(scheduler_router)
 # Run the scheduler in a separate thread
 def run_scheduler():
     """Run the scheduler in a separate thread"""
+    import os
+    from scheduler_job.data_scheduler import schedule_jobs
+    
+    # Get NODE_ENV to determine if scheduler should run
+    node_env = os.getenv("NODE_ENV", "").lower()
+    
     logger.info("Starting scheduler thread")
     
-    # Display scheduler overview on startup
-    logger.info("Scheduler Overview:")
-    logger.info(str(schedule))
+    # Schedule jobs based on environment
+    schedule_jobs()
+    
+    # Display scheduler overview on startup (only in prod)
+    if node_env == "prod":
+        logger.info("Scheduler Overview:")
+        logger.info(str(schedule))
+    else:
+        logger.info(f"Scheduler started but no jobs scheduled (NODE_ENV={node_env}). API endpoints remain available for manual job execution.")
     
     import time
     while True:
-        
         schedule.exec_jobs()
         time.sleep(1)
 
 
-scheduler_thread = threading.Thread(target=run_scheduler)
+scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
 scheduler_thread.start()
 
 # Test endpoint
 @app.get("/")
 async def read_root(request: Request):
     return {"message":"Server is running"}
-
-# Run the FastAPI application - main entry point
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

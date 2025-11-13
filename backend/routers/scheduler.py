@@ -51,7 +51,16 @@ async def get_scheduler_status():
     """Get current scheduler status"""
     try:
         now = datetime.now(pytz.UTC)
+        node_env = os.getenv("NODE_ENV", "").lower()
         jobs_count = len(schedule.jobs)
+        
+        if node_env != "prod":
+            return SchedulerStatus(
+                status="running",
+                current_time=now.isoformat(),
+                jobs_count=jobs_count,
+                message=f"Scheduler is running but no jobs scheduled (NODE_ENV={node_env}, jobs only run in 'prod')"
+            )
         
         return SchedulerStatus(
             status="running",
@@ -206,8 +215,18 @@ async def run_test_job_manually():
 async def get_scheduler_logs():
     """Get scheduler status information"""
     try:
+        node_env = os.getenv("NODE_ENV", "").lower()
         log_scheduler_status()
         now = datetime.now(pytz.UTC)
+        
+        if node_env != "prod":
+            return {
+                "message": "Scheduler status logged successfully",
+                "timestamp": now.isoformat(),
+                "scheduled_jobs": {},
+                "note": f"No jobs scheduled (NODE_ENV={node_env}, jobs only run in 'prod'). API endpoints remain available for manual job execution."
+            }
+        
         return {
             "message": "Scheduler status logged successfully",
             "timestamp": now.isoformat(),
@@ -229,6 +248,20 @@ async def get_scheduler_logs():
 async def scheduler_overview():
     """Get structured scheduler overview with clean JSON response"""
     try:
+        # Check NODE_ENV - return early if not production
+        node_env = os.getenv("NODE_ENV", "").lower()
+        if node_env != "prod":
+            return {
+                "overview": {
+                    "max_exec": "N/A",
+                    "tzinfo": "UTC",
+                    "priority_function": "N/A",
+                    "jobs": [],
+                    "message": f"No jobs scheduled (NODE_ENV={node_env}, jobs only run in 'prod')"
+                },
+                "timestamp": datetime.now(pytz.UTC).isoformat()
+            }
+        
         overview = str(schedule)
         overview_lines = overview.split("\n")
         
