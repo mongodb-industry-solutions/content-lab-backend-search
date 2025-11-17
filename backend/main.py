@@ -75,7 +75,21 @@ def run_scheduler():
 scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
 scheduler_thread.start()
 
-# Test endpoint
+# Root endpoint
 @app.get("/")
-async def read_root(request: Request):
-    return {"message":"Server is running"}
+async def read_root():
+    return {
+        "message": "Contentlab Search API is running",
+        "version": "0.0.1",
+        "status": "healthy",
+        "service": "contentlab-search"
+    }
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "contentlab-search"
+    }
