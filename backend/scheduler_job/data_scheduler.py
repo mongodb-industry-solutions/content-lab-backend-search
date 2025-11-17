@@ -439,31 +439,49 @@ def generate_content_suggestions():
 
 schedule = Scheduler()
 
-# news scraper runs
-schedule.daily(datetime.strptime("04:00", "%H:%M").time(), run_news_scraper)
-
-# reddit scraper runs 
-schedule.daily(datetime.strptime("04:15", "%H:%M").time(), run_reddit_scraper)
-
-# embedding processor
-schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
-
-# content suggestion generator 
-schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
-
-# duplicate cleanup every 2 days at 05:00 UTC
-schedule.daily(datetime.strptime("06:00", "%H:%M").time(), cleanup_duplicates)
-
-# status checks every 4 hours
-for hour in range(0, 24, 4):
-    schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
-
 def test_scheduler_job():
     now = datetime.now(pytz.UTC)
     logger.info(f"Test scheduler job triggered at {now.isoformat()}")
 
-# Schedule the test job to run every hour
-schedule.hourly(dt.time(minute=0, second=0), test_scheduler_job)
+def schedule_jobs():
+    """
+    Schedules all jobs to run at specific times using UTC time.
+    Jobs are only scheduled when NODE_ENV == "prod". For "dev" and "staging" environments, scheduling is skipped.
+    """
+    # Get NODE_ENV to determine if jobs should be scheduled
+    node_env = os.getenv("NODE_ENV", "").lower()
+    
+    # Only schedule jobs in production environment
+    if node_env != "prod":
+        logger.info(f"Skipping job scheduling - NODE_ENV={node_env} (jobs only run in 'prod' environment)")
+        logger.info("Scheduled jobs configured! (no jobs scheduled)")
+        return
+    
+    logger.info(f"Scheduling jobs for production environment (NODE_ENV={node_env})")
+    
+    # news scraper runs
+    schedule.daily(datetime.strptime("04:00", "%H:%M").time(), run_news_scraper)
+
+    # reddit scraper runs 
+    schedule.daily(datetime.strptime("04:15", "%H:%M").time(), run_reddit_scraper)
+
+    # embedding processor
+    schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
+
+    # content suggestion generator 
+    schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
+
+    # duplicate cleanup daily at 06:00 UTC
+    schedule.daily(datetime.strptime("06:00", "%H:%M").time(), cleanup_duplicates)
+
+    # status checks every 4 hours
+    for hour in range(0, 24, 4):
+        schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
+
+    # Schedule the test job to run every hour
+    schedule.hourly(dt.time(minute=0, second=0), test_scheduler_job)
+    
+    logger.info("Scheduled jobs configured!")
 
 # ---- Main function to run the data scheduler -----
 
@@ -479,9 +497,17 @@ if __name__ == "__main__":
         db_connector.create_unique_indexes()
         db_connector.ensure_indexes()
 
-        log_scheduler_status()
+        # Schedule jobs based on environment
+        schedule_jobs()
         
-        logger.info(f"Scheduler overview: {schedule}")
+        # Get NODE_ENV to log appropriate message
+        node_env = os.getenv("NODE_ENV", "").lower()
+        
+        if node_env == "prod":
+            log_scheduler_status()
+            logger.info(f"Scheduler overview: {schedule}")
+        else:
+            logger.info(f"Scheduler started but no jobs scheduled (NODE_ENV={node_env}). API endpoints remain available for manual job execution.")
 
         while True:
             schedule.exec_jobs()

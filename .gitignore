@@ -1,6 +1,13 @@
 # task-def.json
 **/task-def.json
 
+# Kanopy
+knowledge_base_kanopy/
+
+# Security checks
+security_check.sh
+SECURITY_CHECK_README.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

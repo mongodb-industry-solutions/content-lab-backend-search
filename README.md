@@ -267,11 +267,11 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >DRAFTS_COLLECTION=drafts
 >PREVIEW_COLLECTION=preview
 >AWS_REGION=us-east-1
->NEWSAPI_KEY=your_newsapi_key
+>NEWSAPI_KEY=
 >TAVILY_API_KEYS=your_tavily_key1,your_tavily_key2
->REDDIT_CLIENT_ID=your_reddit_client_id
->REDDIT_SECRET=your_reddit_secret
->REDDIT_USER_AGENT=your_reddit_user_agent
+>REDDIT_CLIENT_ID=
+>REDDIT_SECRET=
+>REDDIT_USER_AGENT=
 > ```
 
 ## **Running the Backend**
@@ -291,10 +291,10 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 To start the backend service, run:
 
 ```bash
-poetry run uvicorn main:app --host 0.0.0.0 --port 8000
+poetry run uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
-> Default port is `8000`, modify the `--port` flag if needed.
+> Default port is `8080`, modify the `--port` flag if needed.
 
 ## Running with Docker
 
@@ -317,7 +317,7 @@ You can access the API documentation by visiting the following URL:
 ```
 http://localhost:<PORT_NUMBER>/docs
 ```
-E.g. `http://localhost:8000/docs`
+E.g. `http://localhost:8080/docs`
 
 > [!NOTE]
 > Make sure to replace `<PORT_NUMBER>` with the port number you are using and ensure the backend is running.
@@ -326,3 +326,7 @@ E.g. `http://localhost:8000/docs`
 
 > [!IMPORTANT]
 > Check that you've created an `.env` file that contains the required environment variables.
+
+## 📄 License
+
+See [LICENSE](LICENSE) file for details.
