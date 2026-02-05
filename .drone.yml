@@ -40,7 +40,7 @@ steps:
         - "ingress.enabled=true"
         - "ingress.hosts[0]=contentlab-search.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
-        - "resources.limits.cpu=500m"
+        - "resources.limits.cpu=500m" #reduce resources
         - "resources.limits.memory=512Mi"
         - "resources.requests.cpu=250m"
         - "resources.requests.memory=256Mi"
