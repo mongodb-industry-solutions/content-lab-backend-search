@@ -20,6 +20,8 @@ envSecrets:
   REDDIT_USER_AGENT: contentlab-search
   TAVILY_API_KEYS: contentlab-search
   NODE_ENV: contentlab-search
+  BEDROCK_MODEL_HAIKU: contentlab-search
+  BEDROCK_MODEL_COHERE_EMBED: contentlab-search
 
 serviceAccount:
   enabled: true

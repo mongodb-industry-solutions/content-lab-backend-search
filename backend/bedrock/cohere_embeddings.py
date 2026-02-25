@@ -25,7 +25,7 @@ class BedrockCohereEnglishEmbeddings(BedrockClient):
 
     log: logging.Logger = logging.getLogger("BedrockCohereEnglishEmbeddings")
 
-    def __init__(self, model_id: str = "cohere.embed-english-v3", aws_access_key: Optional[str] = None, aws_secret_key: Optional[str] = None, region_name: Optional[str] = "us-east-1") -> None:
+    def __init__(self, model_id: str = os.getenv("BEDROCK_MODEL_COHERE_EMBED", "cohere.embed-english-v3"), aws_access_key: Optional[str] = None, aws_secret_key: Optional[str] = None, region_name: Optional[str] = "us-east-1") -> None:
         super().__init__(aws_access_key=aws_access_key, aws_secret_key=aws_secret_key, region_name=region_name)
         """
         Initialize the BedrockCohereEnglishEmbeddings class.
