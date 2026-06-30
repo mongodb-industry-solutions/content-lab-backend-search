@@ -173,3 +173,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Drone setup script (contains no secrets, but is a shared utility)
+setup-drone-secrets.sh
