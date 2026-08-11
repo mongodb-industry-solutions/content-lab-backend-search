@@ -13,7 +13,7 @@ import time
 # sys.path hack to reach the modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
-from bedrock.cohere_embeddings import BedrockCohereEnglishEmbeddings
+from grove.embeddings_client import VoyageEmbeddings
 from _vector_search_idx_creator import VectorSearchIDXCreator
 from embeddings.process_embeddings import ContentEmbedder
 
@@ -139,9 +139,12 @@ def convert_query_to_embedding(query_text: str):
     Returns:
         List[float]: The embedding vector
     """
-    embedder = BedrockCohereEnglishEmbeddings()
+    embedder = VoyageEmbeddings()
     try:
-        embedding = embedder.predict(query_text)
+        # Voyage embeds queries and documents asymmetrically, so search
+        # queries must use input_type="query" (not the "document" type used
+        # when indexing content).
+        embedding = embedder.predict(query_text, input_type="query")
         logger.info(f"Generated embedding for query: '{query_text}'")
         return embedding
     except Exception as e:
