@@ -21,7 +21,7 @@ This backend is designed as a microservice, focusing on automated content analys
   Automated data collection is handled by schedulers and scrapers. These run as background jobs, ingesting news and social media data at scheduled intervals. This ensures the microservice remains up-to-date with the latest content without manual intervention.
 
 - **AI/ML Components:**  
-  Integration with AWS Bedrock enables advanced AI capabilities, such as semantic embeddings and content analysis. These components process raw data into actionable intelligence, supporting features like semantic search and automated suggestions.
+  Integration with MongoDB's **Grove** gateway (chat inference) and MongoDB's hosted **Voyage** embeddings endpoint enables advanced AI capabilities, such as semantic embeddings and content analysis. These components process raw data into actionable intelligence, supporting features like semantic search and automated suggestions.
 
 ## **High Level Architecture**
 
@@ -37,7 +37,7 @@ The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes 
    - Scraped data from news and Reddit is ingested and stored in MongoDB collections (`news`, `reddit_posts`).
 
 2. **Embedding Generation:**  
-   - A scheduled embedding process converts this content into semantic vectors using Cohere via AWS Bedrock.
+   - A scheduled embedding process converts this content into semantic vectors using MongoDB's hosted Voyage embeddings endpoint.
 
 3. **Vector Indexing & Semantic Search:**  
    - MongoDB Atlas Vector Search enables fast, semantic similarity search on these vectors.
@@ -51,7 +51,7 @@ The **Suggestion Engine** serves as a smart topic suggestion tool that analyzes 
    - These suggestions are stored in the collection, which is called `suggestions` (Topic Suggestion) in our codebase.
 
 6. **Insight Generation:**  
-   - The engine analyses the aggregated data, identifies trends, and generates actionable topic suggestions using LLMs (`e.g., Claude 3 Haiku via AWS Bedrock`).
+   - The engine analyses the aggregated data, identifies trends, and generates actionable topic suggestions using LLMs (`e.g., Claude Haiku via MongoDB's Grove gateway`).
 
 7. **Response Presentation:**  
    - Actionable insights and suggested topics are displayed to the user in the frontend, enabling informed decision-making for content creation.
@@ -116,10 +116,10 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 ### Database & Data Storage
 - [**pymongo**](https://pymongo.readthedocs.io/) for MongoDB connectivity and operations.
 
-### AWS & Cloud Services
-- [**boto3**](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) for AWS SDK integration and Bedrock API access.
-- [**botocore**](https://botocore.amazonaws.com/v1/documentation/api/latest/index.html) for low-level AWS service operations.
-- [**cohere from Bedrock**](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-embed.html) for generating vector embeddings.
+### AI Inference & Embeddings
+- [**httpx**](https://www.python-httpx.org/) for calling MongoDB's Grove chat gateway and hosted Voyage embeddings endpoint directly over HTTP.
+- **Grove** (MongoDB's internal gateway, Anthropic Messages API shape) for Claude chat completions.
+- **Voyage** (MongoDB's hosted embeddings endpoint, OpenAI-compatible shape) for generating vector embeddings.
 
 ### Web Scraping & HTTP
 - [**requests**](https://requests.readthedocs.io/) for HTTP requests and API calls.
@@ -143,9 +143,8 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
 
 ## **Relevant Models**
 
-  - [**Claude 3 
-  Haiku**](https://docs.aws.amazon.com/bedrock/latest/userguidebedrock-runtime_example_bedrock-runtime_InvokeModel_AnthropicClaude_section.html) for text generation and content analysis through AWS Bedrock.
-  - [**Cohere Embed English v3**](https://docs.aws.amazon.com/bedrocklatestuserguide/model-parameters-embed.html) for
+  - **Claude Haiku** for text generation and content analysis, served through MongoDB's **Grove** gateway (Anthropic Messages API shape).
+  - [**Voyage**](https://www.voyageai.com/) (`voyage-4-large`, served through MongoDB's hosted embeddings endpoint) for
   generating 1024-dimensional vector embeddings for
    semantic search.
   - [**Tavily Search API**](https://tavily.com/)
@@ -174,10 +173,10 @@ The Suggestion Engine combines user input, real-time data aggregation, semantic 
   Monitors and scrapes posts from configured subreddits using the PRAW library. Extracted posts are mapped to relevant topics and stored for semantic analysis and search.
 
 - **Embedding Processor (`embeddings/process_embeddings.py`):**  
-  Transforms ingested news and Reddit content into high-dimensional vector embeddings using Cohere Embed English model via AWS Bedrock. These embeddings power semantic search and similarity matching across the microservice.
+  Transforms ingested news and Reddit content into high-dimensional vector embeddings using MongoDB's hosted Voyage embeddings endpoint. These embeddings power semantic search and similarity matching across the microservice.
 
-- **Content Analyzer (`bedrock/llm_output.py`):**  
-  Utilizes Anthropic Claude models through AWS Bedrock to analyze and summarize content. Generates structured insights (topics, keywords, descriptions, labels) in JSON format, supporting automated suggestions and research.
+- **Content Analyzer (`grove/llm_output.py`):**  
+  Utilizes Anthropic Claude models through MongoDB's Grove gateway to analyze and summarize content. Generates structured insights (topics, keywords, descriptions, labels) in JSON format, supporting automated suggestions and research.
 
 #### c. Scheduler (`scheduler/data_scheduler.py`)
 
@@ -198,8 +197,8 @@ Before you begin, ensure you have met the following requirements:
 - **MongoDB Atlas** account - [Register Here](https://account.mongodb.com/account/register)
 - **Python 3.10 or higher** (but less than 3.11)
 - **Poetry** - [Install Here](https://python-poetry.org/docs/#installation)
-- **AWS CLI** configured with appropriate credentials - [Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- **AWS Account** with Bedrock access enabled - [Sign up Here](https://aws.amazon.com/bedrock/)
+- **Grove API key** - MongoDB's internal Anthropic Messages API gateway, used for chat completions. Ask your team for access.
+- **Voyage API key** - MongoDB's hosted embeddings endpoint. Ask your team for access.
 - **Reddit Developer Account** for API access - [Apply Here](https://www.reddit.com/prefs/apps)
 - **NewsAPI Account** for news aggregation - [Get API Key](https://newsapi.org/register)
 - **Tavily Search API** account - [Register Here](https://tavily.com/)
@@ -254,7 +253,11 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 ## **Configure Environment Variables**
 
 > [!IMPORTANT]
-> Create a `.env` file in the `/backend` directory with the following content:
+> Create a `.env` file in the `/backend` directory. Copy [`backend/env.example`](./backend/env.example) as a starting point:
+>
+> ```bash
+> cp backend/env.example backend/.env
+> ```
 >
 > ```bash
 > MONGODB_URI=your_mongod_uri
@@ -266,7 +269,12 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >USER_PROFILES_COLLECTION=userProfiles
 >DRAFTS_COLLECTION=drafts
 >PREVIEW_COLLECTION=preview
->AWS_REGION=us-east-1
+>GROVE_API_KEY=your_grove_api_key
+>GROVE_BASE_URL=https://grove-gateway-prod.azure-api.net/grove-foundry-prod/anthropic
+>GROVE_CHAT_MODEL=claude-haiku-4-5
+>EMBEDDINGS_URL=https://ai.mongodb.com
+>VOYAGE_API_KEY=your_voyage_api_key
+>VOYAGE_EMBEDDING_MODEL=voyage-4-large
 >NEWSAPI_KEY=
 >TAVILY_API_KEYS=your_tavily_key1,your_tavily_key2
 >REDDIT_CLIENT_ID=
