@@ -5,10 +5,13 @@ services:
       no_cache: true
       dockerfile: Dockerfile.backend
     image: contentlab-search-image-backend:latest
-    volumes:
-      - ~/.aws/credentials:/root/.aws/credentials:ro
-      - ~/.aws/config:/root/.aws/config:ro
-      - ~/.aws/sso/cache:/root/.aws/sso/cache:rw  # Only make cache writable
+    environment:
+      - GROVE_API_KEY=${GROVE_API_KEY}
+      - GROVE_BASE_URL=${GROVE_BASE_URL}
+      - GROVE_CHAT_MODEL=${GROVE_CHAT_MODEL}
+      - EMBEDDINGS_URL=${EMBEDDINGS_URL}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - VOYAGE_EMBEDDING_MODEL=${VOYAGE_EMBEDDING_MODEL}
     ports:
       - "8080:8080"
     restart: always

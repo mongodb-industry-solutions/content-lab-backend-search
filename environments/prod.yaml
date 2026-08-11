@@ -1,11 +1,14 @@
 env:
   NODE_ENV: prod
+  GROVE_BASE_URL: https://grove-gateway-prod.azure-api.net/grove-foundry-prod/anthropic
+  GROVE_CHAT_MODEL: claude-haiku-4-5
+  EMBEDDINGS_URL: https://ai.mongodb.com
+  VOYAGE_EMBEDDING_MODEL: voyage-4-large
 
 envSecrets:
   MONGODB_URI: contentlab-search
   DATABASE_NAME: contentlab-search
   APP_NAME: contentlab-search
-  AWS_REGION: contentlab-search
   NEWS_COLLECTION: contentlab-search
   NEWSAPI_KEY: contentlab-search
   FIRECRAWL_API_KEY: contentlab-search
@@ -20,14 +23,8 @@ envSecrets:
   REDDIT_USER_AGENT: contentlab-search
   TAVILY_API_KEYS: contentlab-search
   NODE_ENV: contentlab-search
-  BEDROCK_MODEL_HAIKU: contentlab-search
-  BEDROCK_MODEL_COHERE_EMBED: contentlab-search
-
-serviceAccount:
-  enabled: true
-  irsa:
-    accountId: "275662791714"
-    roleName: "kanopy-prod-cicd-irsa"
+  GROVE_API_KEY: contentlab-search
+  VOYAGE_API_KEY: contentlab-search
 
 security:
   dataClassification: "Internal"
