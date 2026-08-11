@@ -25,8 +25,8 @@ Run this:
     used as-is)
 
 This script does NOT touch backend/db/collections/*.json - those seed
-fixtures are left as historical examples; regenerating their baked-in
-vectors is intentionally out of scope (see docs/ist-prod-migration.md).
+fixtures are left as historical examples; their baked-in vectors are stale
+Cohere ones, so re-run this script after loading them.
 """
 
 import argparse
