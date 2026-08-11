@@ -6,6 +6,7 @@
 # Import the necessary libraries.
 import logging
 import os
+import time
 from typing import List, Optional
 
 import httpx
@@ -28,6 +29,7 @@ OUTPUT_DIMENSION = 1024
 
 REQUEST_TIMEOUT_SECONDS = 30.0
 MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1.0
 
 # A single module-level httpx.Client, reused across instances. httpx.Client is
 # thread-safe.
@@ -57,7 +59,7 @@ class VoyageEmbeddings:
             model_id (Optional[str]): The model ID to use. Defaults to the VOYAGE_EMBEDDING_MODEL env var.
         """
         self.api_key = api_key or os.getenv("VOYAGE_API_KEY")
-        self.base_url = base_url or EMBEDDINGS_URL
+        self.base_url = (base_url or EMBEDDINGS_URL).rstrip("/")
         self.model_id = model_id or DEFAULT_VOYAGE_EMBEDDING_MODEL
 
     def predict(self, text: str, input_type: str = "document") -> List[float]:
@@ -93,11 +95,28 @@ class VoyageEmbeddings:
                 response = _client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 return response.json()["data"][0]["embedding"]
+            except httpx.HTTPStatusError as e:
+                # A 4xx is a bad key or a malformed request; retrying just burns time.
+                if e.response.status_code < 500:
+                    self.log.error(
+                        f"ERROR: Can't invoke '{self.model_id}'. Reason: {e}"
+                    )
+                    raise RuntimeError(
+                        f"Voyage embedding failed for model '{self.model_id}' with status "
+                        f"{e.response.status_code}: {e}"
+                    ) from e
+                last_error = e
+                self.log.warning(
+                    f"Attempt {attempt}/{MAX_RETRIES} failed calling Voyage model '{self.model_id}': {e}"
+                )
             except (httpx.HTTPError, KeyError, IndexError) as e:
                 last_error = e
                 self.log.warning(
                     f"Attempt {attempt}/{MAX_RETRIES} failed calling Voyage model '{self.model_id}': {e}"
                 )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_BACKOFF_SECONDS * attempt)
 
         # Raise instead of silently returning None: callers need to know an
         # embedding call failed so they don't write a bad/missing vector.
