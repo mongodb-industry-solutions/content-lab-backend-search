@@ -11,18 +11,12 @@ envSecrets:
   APP_NAME: contentlab-search
   NEWS_COLLECTION: contentlab-search
   NEWSAPI_KEY: contentlab-search
-  FIRECRAWL_API_KEY: contentlab-search
   REDDIT_COLLECTION: contentlab-search
   SUGGESTION_COLLECTION: contentlab-search
-  USER_PROFILES_COLLECTION: contentlab-search
-  PREVIEW_COLLECTION: contentlab-search
   REDDIT_CLIENT_ID: contentlab-search
   REDDIT_SECRET: contentlab-search
-  REDDIT_USERNAME: contentlab-search
-  REDDIT_PASSWORD: contentlab-search
   REDDIT_USER_AGENT: contentlab-search
   TAVILY_API_KEYS: contentlab-search
-  NODE_ENV: contentlab-search
   GROVE_API_KEY: contentlab-search
   VOYAGE_API_KEY: contentlab-search
 
