@@ -19,7 +19,7 @@ from scrapers.news_scraper import NewsAPIScraper, NEWS_CATEGORIES
 from scrapers.social_listening import RedditScraper, SUBREDDIT_TOPICS
 from db.mdb import MongoDBConnector
 from embeddings.process_embeddings import ContentEmbedder
-from bedrock.llm_output import ContentAnalyzer
+from grove.llm_output import ContentAnalyzer
 import pytz
 from bson import ObjectId
 

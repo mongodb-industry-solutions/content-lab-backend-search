@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from embeddings.test_embeddings import convert_query_to_embedding, search_similar_content
-from bedrock.llm_output import ContentAnalyzer
+from grove.llm_output import ContentAnalyzer
 from db.mdb import MongoDBConnector
 from search_topics.topic_search import search_topic
 

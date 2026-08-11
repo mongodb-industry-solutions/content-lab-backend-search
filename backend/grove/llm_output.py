@@ -1,6 +1,6 @@
 # ---- llm_output.py ----
 
-# Process news and Reddit snippets using Claude Model from bedrock to extract structured insights.
+# Process news and Reddit snippets using Claude Model from Grove to extract structured insights.
 
 # Import the necessary libraries.
 import os
@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from json.decoder import JSONDecodeError
 from bson import json_util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from .anthropic_chat_completions import BedrockAnthropicChatCompletions # this is an import from the same directory
+from .chat_completions import GroveAnthropicChatCompletions # this is an import from the same directory
 from embeddings.test_embeddings import SnippetGenerator, search_similar_content, convert_query_to_embedding
 from db.mdb import MongoDBConnector
 import datetime
@@ -38,7 +38,7 @@ class ContentAnalyzer:
         Returns:
             None
         """
-        self.llm = BedrockAnthropicChatCompletions()
+        self.llm = GroveAnthropicChatCompletions()
         self.snippet_generator = SnippetGenerator(max_sentences=2, max_comments=3)
 
     def _clean_json(self, text: str) -> str:

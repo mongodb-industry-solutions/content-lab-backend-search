@@ -1,6 +1,6 @@
 # ---topic_search.py---
 
-# This file is used to search for recent updates related to a specific topic using Tavily Search Agent API and Bedrock LLM (as a fallback).
+# This file is used to search for recent updates related to a specific topic using Tavily Search Agent API and Grove LLM (as a fallback).
 
 # Import the necessary libraries.
 import os
@@ -8,7 +8,7 @@ import json
 import logging
 from dotenv import load_dotenv
 from langchain_tavily import TavilySearch
-from bedrock.anthropic_chat_completions import BedrockAnthropicChatCompletions
+from grove.chat_completions import GroveAnthropicChatCompletions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -28,7 +28,7 @@ def get_tavily_api_keys():
 def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
     """
     Search for recent updates related to a specific topic using Tavily.
-    Falls back to Bedrock LLM if all Tavily API keys fail.
+    Falls back to Grove LLM if all Tavily API keys fail.
     Args:
         topic: str, the topic to search for
         max_results: int, the maximum number of results to return
@@ -78,11 +78,11 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
                 last_exception = e
                 continue
 
-    # Fallback to Bedrock LLM if all Tavily API keys fail
-    logger.info(f"All Tavily API keys failed for topic '{topic}'. Falling back to Bedrock LLM.")
+    # Fallback to Grove LLM if all Tavily API keys fail
+    logger.info(f"All Tavily API keys failed for topic '{topic}'. Falling back to Grove LLM.")
     try:
-        bedrock_llm = BedrockAnthropicChatCompletions()
-        llm_response = bedrock_llm.predict(query)
+        grove_llm = GroveAnthropicChatCompletions()
+        llm_response = grove_llm.predict(query)
         response = {
             "topic": topic,
             "query": query,
@@ -92,15 +92,15 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
                 "snippet": llm_response,
                 "url": None
             }],
-            "source": "bedrock"
+            "source": "grove"
         }
         return response
     except Exception as e:
-        logger.error(f"Bedrock LLM fallback also failed: {str(e)}")
+        logger.error(f"Grove LLM fallback also failed: {str(e)}")
         return {
             "topic": topic,
             "query": query,
-            "error": f"All Tavily keys failed. Bedrock fallback failed: {str(e)}",
+            "error": f"All Tavily keys failed. Grove fallback failed: {str(e)}",
             "results": [],
             "source": "none"
         }

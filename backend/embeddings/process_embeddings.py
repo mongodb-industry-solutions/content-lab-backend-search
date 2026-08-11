@@ -12,7 +12,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
-from bedrock.cohere_embeddings import BedrockCohereEnglishEmbeddings
+from grove.embeddings_client import VoyageEmbeddings
 from _vector_search_idx_creator import VectorSearchIDXCreator
 
 # Configure logging
@@ -36,7 +36,7 @@ class ContentEmbedder:
             None
         """
         self.db_connector = MongoDBConnector()
-        self.embedder = BedrockCohereEnglishEmbeddings()
+        self.embedder = VoyageEmbeddings()
         self.batch_size = batch_size
 
     def _format_fields(self, data: dict, fields: List[str]) -> List[str]:
@@ -128,7 +128,7 @@ class ContentEmbedder:
                     if len(article_string) < 10:
                         logger.warning(f"Article {article['_id']} has insufficient content for embedding")
                         continue
-                    embedding = self.embedder.predict(article_string)
+                    embedding = self.embedder.predict(article_string, input_type="document")
                     collection.update_one(
                         {"_id": article["_id"]},
                         {"$set": {
@@ -174,7 +174,7 @@ class ContentEmbedder:
                     if len(post_string) < 10:
                         logger.warning(f"Post {post['_id']} has insufficient content for embedding")
                         continue
-                    embedding = self.embedder.predict(post_string)
+                    embedding = self.embedder.predict(post_string, input_type="document")
                     collection.update_one(
                         {"_id": post["_id"]},
                         {"$set": {
