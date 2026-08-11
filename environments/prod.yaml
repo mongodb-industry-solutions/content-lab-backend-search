@@ -20,6 +20,12 @@ envSecrets:
   GROVE_API_KEY: contentlab-search
   VOYAGE_API_KEY: contentlab-search
 
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-prod-cicd-irsa"
+
 security:
   dataClassification: "Internal"
   dataDesignation: ["MI"]
