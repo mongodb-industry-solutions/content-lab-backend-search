@@ -104,3 +104,29 @@ steps:
     when:
       event:
         - push
+
+  # One-off: pushes the current Grove key into the cluster Secret. That Secret is
+  # created out-of-band, so a redeploy alone never updates it — the values file only
+  # references it by name. Remove this step once the Secret is correct.
+  - name: patch-grove-key
+    image: alpine/kubectl:1.31.0
+    environment:
+      KUBE_TOKEN:
+        from_secret: prod_kubernetes_token
+      GROVE_KEY:
+        from_secret: grove_api_key
+    commands:
+      # The API server presents an internal CA the container doesn't carry, so the
+      # cert chain can't be verified here. The connection is still authenticated by
+      # the bearer token, over the cluster's own network.
+      - kubectl config set-cluster prod --server=https://api.prod.corp.mongodb.com --insecure-skip-tls-verify=true
+      - kubectl config set-credentials drone --token=$$KUBE_TOKEN
+      - kubectl config set-context prod --cluster=prod --user=drone --namespace=industrysolutions
+      - kubectl --context=prod -n industrysolutions patch secret contentlab-search --type merge -p "{\"stringData\":{\"GROVE_API_KEY\":\"$$GROVE_KEY\"}}"
+      # Helm leaves the pods alone when the image tag is unchanged, so without this
+      # the new value would sit unread in the Secret.
+      - kubectl --context=prod -n industrysolutions rollout restart deploy/contentlab-search-web-app
+      - kubectl --context=prod -n industrysolutions rollout status deploy/contentlab-search-web-app --timeout=180s
+    when:
+      event:
+        - push
