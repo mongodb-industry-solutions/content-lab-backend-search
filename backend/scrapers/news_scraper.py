@@ -99,15 +99,14 @@ class NewsScraper(ABC):
         
         try:
             result = db_connector.upsert_many(collection_name, articles, unique_field="url")
-            logger.info(f"Stored {result['upserted']} new and updated {result['updated']} {self.category} articles")
+            logger.info(
+                f"Stored {result['upserted']} new and updated {result['updated']} "
+                f"{self.category} articles "
+                f"(skipped {result.get('skipped', 0)}, failed {result.get('failed', 0)})"
+            )
         except Exception as e:
             logger.error(f"Error storing {self.category} articles in database: {e}")
-            
-        client = db_connector.client  
-        print("Databases on server:", client.list_database_names())
-        db = client[db_connector.database_name]  
-        print("Collections in that DB:", db.list_collection_names())
-    
+
     def generate_metrics(self, url: str) -> Dict[str, int]:
         """
         Provide consistent metrics for an article based on its URL.
@@ -230,24 +229,27 @@ class NewsAPIScraper(NewsScraper):
     def run_for_multiple_categories(self, categories, db_connector):
         """
         Run the scraper for multiple categories.
-        
+
         Args:
             categories (List[str]): List of categories to scrape
             db_connector (MongoDBConnector): Database connector
+        Returns:
+            int: Total number of articles fetched across all categories
         """
         total_articles = 0
-        
+
         for category in categories:
             logger.info(f"Fetching articles for category: {category}")
             # Update the category for this run
             self.category = category
-            
+
             # Extract and store articles
             articles = self.extract_articles()
             self.store_articles(db_connector, articles)
             total_articles += len(articles)
-        
+
         logger.info(f"Completed scraping from NewsAPI. Total articles: {total_articles}")
+        return total_articles
 
 
 # ----Main function to run news scraper------

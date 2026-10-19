@@ -8,8 +8,20 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
 from bson import ObjectId
+from bson.errors import InvalidId
 
 from db.mdb import MongoDBConnector
+
+
+def _to_object_id(value: str, field: str = "id") -> ObjectId:
+    """Parse a user-supplied id.
+
+    Raises a 400 rather than letting bson's InvalidId surface as a 500.
+    """
+    try:
+        return ObjectId(value)
+    except (InvalidId, TypeError):
+        raise HTTPException(status_code=400, detail=f"{field} is not a valid id")
 
 # Create the router
 router = APIRouter(
@@ -63,7 +75,7 @@ async def get_draft_by_id(
     try:
         collection = db.get_collection("drafts")
         draft = collection.find_one({
-            "_id": ObjectId(draft_id),
+            "_id": _to_object_id(draft_id, "draft_id"),
             "userId": userId
         })
 
@@ -74,9 +86,9 @@ async def get_draft_by_id(
         draft["_id"] = str(draft["_id"])
 
         return draft
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 # Get an existing draft for a specific topic and user
@@ -151,7 +163,8 @@ async def update_draft(
     """
     try:
         collection = db.get_collection("drafts")
-        
+        oid = _to_object_id(draft_id, "draft_id")
+
         # Update data (allow changing title, category, content, and topicId)
         update_data = {
             "title": request.title,
@@ -161,23 +174,26 @@ async def update_draft(
             "topicId": request.topicId,
             "updated_at": datetime.utcnow()
         }
-        
-        # Update the draft
+
+        # Scope the update to the owning user, matching GET and DELETE. Without the
+        # userId filter any caller could overwrite another user's draft.
         result = collection.update_one(
-            {"_id": ObjectId(draft_id)}, 
+            {"_id": oid, "userId": request.userId},
             {"$set": update_data}
         )
-        
+
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Draft not found")
-        
+            raise HTTPException(status_code=404, detail="Draft not found or access denied")
+
         # Get the updated draft and return it
-        updated_draft = collection.find_one({"_id": ObjectId(draft_id)})
+        updated_draft = collection.find_one({"_id": oid})
         updated_draft["_id"] = str(updated_draft["_id"])
-        
+
         return updated_draft
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Delete a draft document by ID and userId
 @router.delete("/{draft_id}")
@@ -191,12 +207,14 @@ async def delete_draft(
     try:
         collection = db.get_collection("drafts")
         result = collection.delete_one({
-            "_id": ObjectId(draft_id),
+            "_id": _to_object_id(draft_id, "draft_id"),
             "userId": userId
         })
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Draft not found or access denied")
         return {"message": "Draft deleted successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

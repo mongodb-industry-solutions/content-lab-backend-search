@@ -25,7 +25,13 @@ class MongoDBConnector:
         self.uri = uri or os.getenv("MONGODB_URI")
         self.database_name = database_name or os.getenv("DATABASE_NAME")
         self.appname = appname or os.getenv("APP_NAME")
-        self.client = MongoClient(self.uri, appname=self.appname)
+        # Fail fast (5s) instead of hanging for the 30s default when Atlas is
+        # unreachable, so API requests surface a clear error rather than timing out.
+        self.client = MongoClient(
+            self.uri,
+            appname=self.appname,
+            serverSelectionTimeoutMS=5000,
+        )
         self.db = self.client[self.database_name]
 
     def get_collection(self, collection_name):
@@ -53,21 +59,56 @@ class MongoDBConnector:
         return result.upserted_id if result.upserted_id else result.modified_count
 
     def upsert_many(self, collection_name, documents, unique_field="url"):
-        """Upsert multiple documents efficiently."""
+        """Upsert multiple documents efficiently.
+
+        Documents whose `unique_field` is missing or falsy are skipped rather than
+        upserted on a `{unique_field: None}` filter. Matching on a null key means every
+        such document collapses onto the same record (replace_one overwrites it), so
+        only the last one would survive. Skipped documents are counted and reported.
+
+        A duplicate-key error on one document no longer aborts the whole batch: the
+        remaining documents are still processed.
+        """
         collection = self.get_collection(collection_name)
         upserted_count = 0
         updated_count = 0
-        
+        skipped_count = 0
+        failed_count = 0
+
         for document in documents:
-            if unique_field in document:
-                filter_query = {unique_field: document[unique_field]}
+            if not document.get(unique_field):
+                # No usable key: cannot deduplicate safely. Skip instead of collapsing.
+                skipped_count += 1
+                logger.warning(
+                    f"Skipping {collection_name} document with missing/empty "
+                    f"'{unique_field}' (topic={document.get('topic')!r})"
+                )
+                continue
+
+            filter_query = {unique_field: document[unique_field]}
+            try:
                 result = collection.replace_one(filter_query, document, upsert=True)
-                if result.upserted_id:
-                    upserted_count += 1
-                else:
-                    updated_count += 1
-        
-        return {"upserted": upserted_count, "updated": updated_count}
+            except DuplicateKeyError as e:
+                # A different unique index (e.g. title+source) collided. Skip this
+                # document rather than losing the rest of the batch.
+                failed_count += 1
+                logger.warning(
+                    f"Duplicate key while upserting into {collection_name} "
+                    f"({unique_field}={document.get(unique_field)!r}): {e}"
+                )
+                continue
+
+            if result.upserted_id:
+                upserted_count += 1
+            else:
+                updated_count += 1
+
+        return {
+            "upserted": upserted_count,
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "failed": failed_count,
+        }
 
     def find(self, collection_name, query={}, projection=None):
         """Retrieve documents from a collection."""
