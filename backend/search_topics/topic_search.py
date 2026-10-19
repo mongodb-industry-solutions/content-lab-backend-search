@@ -74,7 +74,12 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
                 return response
 
             except Exception as e:
-                logger.warning(f"Attempt {attempt+1} failed for API key {api_key}: {str(e)}")
+                # Never log the key itself: these are live credentials and the logs
+                # are shipped off-host. Log only a short prefix for correlation.
+                key_hint = f"{api_key[:8]}..." if api_key else "<none>"
+                logger.warning(
+                    f"Attempt {attempt+1} failed for API key {key_hint}: {str(e)}"
+                )
                 last_exception = e
                 continue
 
@@ -97,10 +102,13 @@ def search_topic(topic, max_results: int = 4, max_retries: int = 2) -> dict:
         return response
     except Exception as e:
         logger.error(f"Grove LLM fallback also failed: {str(e)}")
+        # Keep the same keys as the success shape (notably `result_count`) so callers
+        # can read the response uniformly instead of raising KeyError.
         return {
             "topic": topic,
             "query": query,
             "error": f"All Tavily keys failed. Grove fallback failed: {str(e)}",
+            "result_count": 0,
             "results": [],
             "source": "none"
         }

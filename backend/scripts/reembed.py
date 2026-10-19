@@ -34,7 +34,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 # sys.path hack to reach the backend/ package modules, matching the
 # convention already used by embeddings/process_embeddings.py etc.
@@ -73,6 +73,30 @@ def _iter_batches(items: List[Dict[str, Any]], batch_size: int) -> Iterable[List
         yield items[start:start + batch_size]
 
 
+def _source_text(doc: Dict[str, Any]) -> Optional[str]:
+    """Reconstruct the text to embed for a document.
+
+    Prefers the stored `embedding_string`. Falls back to the document's own text
+    fields, because documents that carry a stale vector but no `embedding_string`
+    were previously skipped entirely and kept serving their old vector from
+    `$vectorSearch` - the exact case this script exists to fix.
+
+    Returns None when no usable text can be found.
+    """
+    text = doc.get("embedding_string")
+    if isinstance(text, str) and text.strip():
+        return text
+
+    parts = [
+        doc.get(field)
+        for field in ("title", "description", "content", "body")
+    ]
+    joined = "\n".join(
+        part.strip() for part in parts if isinstance(part, str) and part.strip()
+    )
+    return joined or None
+
+
 def reembed_collection(
     db_connector: MongoDBConnector,
     embedder: VoyageEmbeddings,
@@ -105,11 +129,21 @@ def reembed_collection(
     """
     collection = db_connector.get_collection(collection_name)
 
-    query: Dict[str, Any] = {"embedding_string": {"$exists": True, "$ne": None}}
+    # Select every document not already stamped with the current model. Deliberately
+    # NOT requiring `embedding_string` - see _source_text.
+    query: Dict[str, Any] = {}
     if not force:
         query[EMBEDDING_MODEL_FIELD] = {"$ne": embedder.model_id}
 
-    documents = list(collection.find(query, {"_id": 1, "embedding_string": 1}))
+    projection = {
+        "_id": 1,
+        "embedding_string": 1,
+        "title": 1,
+        "description": 1,
+        "content": 1,
+        "body": 1,
+    }
+    documents = list(collection.find(query, projection))
     total = len(documents)
     logger.info(f"[{collection_name}] Found {total} documents to re-embed (force={force})")
 
@@ -118,8 +152,12 @@ def reembed_collection(
     for batch_num, batch in enumerate(_iter_batches(documents, batch_size), start=1):
         for doc in batch:
             doc_id = doc["_id"]
-            text = doc.get("embedding_string")
+            text = _source_text(doc)
             if not text:
+                failed += 1
+                logger.warning(
+                    f"[{collection_name}] No usable text to re-embed for _id={doc_id}; skipping"
+                )
                 continue
             try:
                 if dry_run:

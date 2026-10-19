@@ -132,8 +132,12 @@ class ContentEmbedder:
                     collection.update_one(
                         {"_id": article["_id"]},
                         {"$set": {
-                            "embedding": embedding, 
-                            "embedding_string": article_string
+                            "embedding": embedding,
+                            "embedding_string": article_string,
+                            # Stamp the model so scripts/reembed.py can tell which
+                            # vectors are current. Without this the stamp it checks is
+                            # never written and it re-embeds everything every run.
+                            "embedding_model": self.embedder.model_id,
                         }}
                     )
                     processed += 1
@@ -178,8 +182,10 @@ class ContentEmbedder:
                     collection.update_one(
                         {"_id": post["_id"]},
                         {"$set": {
-                            "embedding": embedding, 
-                            "embedding_string": post_string
+                            "embedding": embedding,
+                            "embedding_string": post_string,
+                            # See note in process_news_embeddings.
+                            "embedding_model": self.embedder.model_id,
                         }}
                     )
                     processed += 1

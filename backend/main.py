@@ -67,9 +67,19 @@ def run_scheduler():
         logger.info(f"Scheduler started but no jobs scheduled (NODE_ENV={node_env}). API endpoints remain available for manual job execution.")
     
     import time
+    # Poll once a second while there is work scheduled, but back off when the schedule
+    # is empty (the non-prod case) so the thread isn't waking up every second for
+    # nothing. Manual job triggers run on the request path, not through this loop.
+    idle_sleep_seconds = 30.0
     while True:
-        schedule.exec_jobs()
-        time.sleep(1)
+        try:
+            schedule.exec_jobs()
+        except Exception as e:
+            # Job functions now propagate failures so the manual-trigger endpoints can
+            # report them. The scheduler library already catches per-job exceptions, but
+            # guard the tick itself so one bad job can never kill this thread.
+            logger.exception(f"Scheduler tick failed: {e}")
+        time.sleep(1 if schedule.jobs else idle_sleep_seconds)
 
 
 scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
