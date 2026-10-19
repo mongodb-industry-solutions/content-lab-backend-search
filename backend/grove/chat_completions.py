@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 GROVE_BASE_URL = os.getenv(
     "GROVE_BASE_URL",
-    "https://grove-gateway-prod.azure-api.net/grove-foundry-prod/anthropic",
+    "https://ai-gateway.corp.mongodb.com/anthropic",
 )
 DEFAULT_GROVE_CHAT_MODEL = os.getenv("GROVE_CHAT_MODEL", "claude-haiku-4-5")
 ANTHROPIC_VERSION = "2023-06-01"
@@ -46,8 +46,8 @@ _client = httpx.Client(timeout=REQUEST_TIMEOUT_SECONDS)
 class GroveAnthropicChatCompletions:
     """A class to generate chat completions using MongoDB's Grove gateway (Anthropic Claude models)."""
     # Reference: Grove exposes an Anthropic Messages API-shaped endpoint at
-    # POST {GROVE_BASE_URL}/v1/messages, fronted by Azure APIM (hence the
-    # `api-key` header rather than Anthropic's native `x-api-key`).
+    # POST {GROVE_BASE_URL}/v1/messages on the corp AI gateway, which
+    # authenticates with Anthropic's native `x-api-key` header.
 
     log: logging.Logger = logging.getLogger("GroveAnthropicChatCompletions")
 
@@ -65,7 +65,7 @@ class GroveAnthropicChatCompletions:
             base_url (Optional[str]): The Grove gateway base URL. Defaults to the GROVE_BASE_URL env var.
             model_id (Optional[str]): The model ID to use. Defaults to the GROVE_CHAT_MODEL env var.
         """
-        self.api_key = api_key or os.getenv("GROVE_API_KEY")
+        self.api_key = api_key or os.getenv("GROVE_API_KEY") or os.getenv("AI_GATEWAY_API_KEY")
         self.base_url = base_url or GROVE_BASE_URL
         self.model_id = model_id or DEFAULT_GROVE_CHAT_MODEL
 
@@ -84,9 +84,7 @@ class GroveAnthropicChatCompletions:
             raise RuntimeError("GROVE_API_KEY is not set - there is no model to call.")
 
         headers = {
-            # Grove is fronted by Azure APIM, which authenticates with
-            # `api-key`, NOT Anthropic's native `x-api-key`.
-            "api-key": self.api_key,
+            "x-api-key": self.api_key,
             "anthropic-version": ANTHROPIC_VERSION,
             "content-type": "application/json",
         }

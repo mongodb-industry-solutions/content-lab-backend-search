@@ -161,9 +161,15 @@ def search_similar_content(query_embedding, limit: int = 5):
     """
     db = MongoDBConnector()
     all_results: Dict[str, List[Dict[str, Any]]] = {}
-    collection_names = ["news", "reddit_posts"]
 
-    for collection_name in collection_names:
+    # Honour the same collection-name overrides the scrapers use, but keep the result
+    # keys fixed at "news"/"reddit_posts" so callers keep working either way.
+    collection_names = {
+        "news": NEWS_COLLECTION,
+        "reddit_posts": REDDIT_COLLECTION,
+    }
+
+    for logical_name, collection_name in collection_names.items():
         collection = db.get_collection(collection_name)
         pipeline = [
             {
@@ -192,10 +198,10 @@ def search_similar_content(query_embedding, limit: int = 5):
         try:
             results = list(collection.aggregate(pipeline))
             logger.info(f"Found {len(results)} results in {collection_name}")
-            all_results[collection_name] = results
+            all_results[logical_name] = results
         except Exception as e:
             logger.error(f"Error searching {collection_name}: {e}")
-            all_results[collection_name] = []
+            all_results[logical_name] = []
     return all_results
 
 def display_results(results, query: str, collection_type: str):

@@ -6,6 +6,7 @@
 import os
 import sys
 import time
+import logging
 from datetime import datetime
 from typing import List, Dict, Any
 from dotenv import load_dotenv
@@ -20,6 +21,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.mdb import MongoDBConnector
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 REDDIT_COLLECTION = os.getenv("REDDIT_COLLECTION", "reddit_posts")
 
@@ -174,7 +178,7 @@ class RedditScraper:
                     all_posts.append(doc)
                     
             except Exception as e:
-                print(f"Error getting {sort_method} posts for r/{self.subreddit}: {str(e)}")
+                logger.error(f"Error getting {sort_method} posts for r/{self.subreddit}: {str(e)}")
                 # If one sort method fails, continue with others
                 continue
         
@@ -193,15 +197,22 @@ class RedditScraper:
         """
         Store posts in the database
         :param db: MongoDBConnector instance
-        :return: int - Number of posts inserted
+        :return: int - Number of posts successfully written
         """
         posts = self.extract_posts()
-        inserted = 0
+        stored = 0
         for p in posts:
-            db.upsert_one(REDDIT_COLLECTION, {"reddit_id": p["reddit_id"]}, p)
-            inserted += 1
-        
-        return inserted
+            try:
+                db.upsert_one(REDDIT_COLLECTION, {"reddit_id": p["reddit_id"]}, p)
+                stored += 1
+            except Exception as e:
+                # One colliding document (e.g. the unique title+subreddit or url index)
+                # must not abort the rest of the subreddit's batch.
+                logger.warning(
+                    f"Skipping post reddit_id={p.get('reddit_id')!r} in r/{self.subreddit}: {e}"
+                )
+
+        return stored
     
 # ----- Main function to run social listening scraper ------
 

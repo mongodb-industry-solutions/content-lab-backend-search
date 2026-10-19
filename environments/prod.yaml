@@ -1,6 +1,6 @@
 env:
   NODE_ENV: prod
-  GROVE_BASE_URL: https://grove-gateway-prod.azure-api.net/grove-foundry-prod/anthropic
+  GROVE_BASE_URL: https://ai-gateway.corp.mongodb.com/anthropic
   GROVE_CHAT_MODEL: claude-haiku-4-5
   EMBEDDINGS_URL: https://ai.mongodb.com
   VOYAGE_EMBEDDING_MODEL: voyage-4-large

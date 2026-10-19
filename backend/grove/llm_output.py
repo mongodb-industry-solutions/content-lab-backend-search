@@ -43,23 +43,34 @@ class ContentAnalyzer:
 
     def _clean_json(self, text: str) -> str:
         """
-        Clean and extract valid JSON from LLM response.
+        Extract valid JSON from an LLM response.
+
+        The model usually wraps its JSON in a ```json fence and occasionally emits
+        trailing commas. Both are handled here.
+
+        Do NOT rewrite single quotes to double quotes: apostrophes are ordinary
+        characters inside JSON string values ("Samsung's", "China's"). Rewriting them
+        corrupts otherwise-valid JSON, which silently discarded most responses.
         Args:
             text: str, the text to clean
         Returns:
             str: The cleaned text
         """
-        # Find JSON array pattern
-        json_match = re.search(r'\[\s*{.*}\s*\]', text, re.DOTALL)
-        if json_match:
-            text = json_match.group(0)
-        
-        # Fix common JSON errors
-        text = re.sub(r',\s*}', '}', text)  
-        text = re.sub(r',\s*\]', ']', text) 
-        text = re.sub(r'\'', '"', text)      
-        
-        return text
+        # Strip a markdown code fence if the model added one.
+        fenced = re.search(r'```(?:json)?\s*(.*?)```', text, re.DOTALL)
+        if fenced:
+            text = fenced.group(1)
+
+        # Take the outermost JSON array, ignoring any prose around it.
+        start = text.find('[')
+        end = text.rfind(']')
+        if start != -1 and end > start:
+            text = text[start:end + 1]
+
+        # Drop trailing commas before a closing brace or bracket.
+        text = re.sub(r',\s*([}\]])', r'\1', text)
+
+        return text.strip()
 
     # -------- Prompt Formatting Methods --------
 
@@ -380,7 +391,11 @@ class ContentAnalyzer:
                 if docs:
                     result = db_connector.upsert_many(SUGGESTION_COLLECTION, docs, unique_field="url")
                     stored_counts[content_key] = result["upserted"] + result["updated"]
-                    logger.info(f"Stored {result['upserted']} new and updated {result['updated']} {content_key} analysis documents")
+                    logger.info(
+                        f"Stored {result['upserted']} new and updated {result['updated']} "
+                        f"{content_key} analysis documents "
+                        f"(skipped {result.get('skipped', 0)}, failed {result.get('failed', 0)})"
+                    )
                             
             return stored_counts
             

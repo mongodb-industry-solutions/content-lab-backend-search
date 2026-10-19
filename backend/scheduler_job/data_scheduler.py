@@ -204,7 +204,7 @@ def cleanup_generic(collection_name: str, retention_days: int = 10, max_docs: in
 def cleanup_duplicates():
     """
     Remove duplicate articles based on URL and title.
-    Keeps the newest document (by _id) and removes older duplicates.
+    Keeps the newest document (by timestamp) and removes older duplicates.
     Respects minimum document limits for each collection.
     Runs on a daily basis to maintain clean collections.
     """
@@ -229,7 +229,11 @@ def cleanup_duplicates():
             "match_condition": {"reddit_id": {"$ne": None}}
         },
         "suggestions": {
-            "group_by": {"topic": "$topic", "query": "$source_query"},
+            # `label` must be part of the key: it is part of the unique identity of a
+            # suggestion (see MongoDBConnector.create_unique_indexes). Grouping without
+            # it treats two suggestions that differ only by label as duplicates and
+            # deletes one of them.
+            "group_by": {"topic": "$topic", "query": "$source_query", "label": "$label"},
             "timestamp_field": "$analyzed_at",
             "match_condition": {"topic": {"$ne": None}}
         }
@@ -281,10 +285,29 @@ def cleanup_duplicates():
         for dup in duplicates:
             # Sort by timestamp and keep the newest
             def get_timestamp_value(doc):
-                if "timestamp" not in doc:
-                    return ""
-                return str(doc["timestamp"]) if doc.get("timestamp") is not None else ""
-                
+                """Sort key for "newest first", safe across mixed timestamp types.
+
+                Timestamps arrive as datetimes (some naive, some tz-aware) or missing.
+                Comparing str() of them is unreliable: a naive "2024-01-02 03:04:05"
+                always sorts before the tz-aware "2024-01-02 03:04:05+00:00" because it
+                is a strict prefix, regardless of actual age. Normalise to epoch
+                seconds instead. Unparseable/missing values sort oldest.
+                """
+                value = doc.get("timestamp")
+                if isinstance(value, datetime):
+                    if value.tzinfo is None:
+                        value = value.replace(tzinfo=pytz.UTC)
+                    return value.timestamp()
+                if isinstance(value, str):
+                    try:
+                        parsed = datetime.fromisoformat(value)
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=pytz.UTC)
+                        return parsed.timestamp()
+                    except ValueError:
+                        return float("-inf")
+                return float("-inf")
+
             sorted_docs = sorted(dup["docs"], key=get_timestamp_value, reverse=True)
             docs_to_remove = [doc["id"] for doc in sorted_docs[1:]]  
             
@@ -342,8 +365,13 @@ def run_news_scraper():
         logger.info(f"News scraper completed: {total_articles} articles from {len(NEWS_CATEGORIES)} categories")
     except Exception as e:
         logger.error(f"Error in news scraper job: {e}")
-    # cleanup old news
-    cleanup_generic("news")
+        # Propagate so the manual-trigger endpoint reports "failed" instead of a
+        # success it cannot substantiate. The scheduler library logs job exceptions
+        # and keeps running, so this does not kill the scheduler thread.
+        raise
+    finally:
+        # cleanup old news (runs whether or not the scrape succeeded)
+        cleanup_generic("news")
 
 # b. Reddit Scraper Job
 
@@ -352,16 +380,29 @@ def run_reddit_scraper():
     now = datetime.now(pytz.UTC)
     logger.info(f"Starting Reddit scraper job at {now.isoformat()}")
     total_count = 0
+    failed = []
     for subreddit in SUBREDDIT_TOPICS:
         try:
             count = RedditScraper(subreddit=subreddit).store(db_connector)
             total_count += count
             logger.info(f"Scraped {count} posts from r/{subreddit}")
         except Exception as e:
+            failed.append(subreddit)
             logger.error(f"Error scraping subreddit {subreddit}: {e}")
-    logger.info(f"Reddit scraper completed: {total_count} total posts")
+    logger.info(
+        f"Reddit scraper completed: {total_count} total posts "
+        f"({len(failed)}/{len(SUBREDDIT_TOPICS)} subreddits failed)"
+    )
     # cleanup old reddit posts
     cleanup_generic("reddit_posts")
+
+    # A run where every subreddit failed (e.g. expired credentials) used to report
+    # "completed" with 0 posts. Surface it instead.
+    if failed and total_count == 0:
+        raise RuntimeError(
+            f"Reddit scraper ingested 0 posts - all {len(failed)} subreddits failed. "
+            f"See the per-subreddit errors logged above."
+        )
 
 # c. Embedding Processor Job
 
@@ -382,6 +423,7 @@ def process_embeddings():
 
     except Exception as e:
         logger.error(f"Error in embeddings processing job: {e}")
+        raise
 
 # ------ 4. Targeted Queries --------- 
 
@@ -405,9 +447,12 @@ def generate_content_suggestions():
     logger.info(f"Starting content suggestion job at {start.isoformat()}")
     analyzer = ContentAnalyzer()
     total_generated = 0
+    failures = 0
+    attempts = 0
 
     # news categories
     for category in NEWS_CATEGORIES:
+        attempts += 1
         try:
             results = analyzer.analyze_and_store_search_results(
                 f"Latest {category} news and developments", db_connector
@@ -416,28 +461,44 @@ def generate_content_suggestions():
             total_generated += count
             logger.info(f"Generated {count} suggestions for news category '{category}'")
         except Exception as e:
+            failures += 1
             logger.error(f"Error suggestions for news '{category}': {e}")
 
     # subreddit categories
     for subreddit in SUBREDDIT_TOPICS:
         q = generate_targeted_query(subreddit)
+        attempts += 1
         try:
             results = analyzer.analyze_and_store_search_results(q, db_connector)
             count = sum(results["stored"].values())
             total_generated += count
             logger.info(f"Generated {count} suggestions for r/{subreddit}")
         except Exception as e:
+            failures += 1
             logger.error(f"Error suggestions for r/{subreddit}: {e}")
 
     # cleanup old suggestions + enforce cap
     cleanup_suggestions()
 
     end = datetime.now(pytz.UTC)
-    logger.info(f"Content suggestions done in {(end - start).total_seconds()}s: generated {total_generated}")
+    logger.info(
+        f"Content suggestions done in {(end - start).total_seconds()}s: "
+        f"generated {total_generated} ({failures}/{attempts} topics errored)"
+    )
+
+    # Every topic erroring means the job did nothing useful; report it as a failure.
+    if failures and total_generated == 0:
+        raise RuntimeError(
+            f"Content suggestion generation produced nothing - all {attempts} topics errored."
+        )
 
 # Scheduler setup
 
-schedule = Scheduler()
+# Pass tzinfo explicitly. The library defaults to tzinfo=None, which makes exec_jobs
+# compare triggers against naive LOCAL time - so a job registered as "04:00 UTC"
+# actually ran at 04:00 local. That is wrong on any host not set to UTC, and it
+# shifts again at DST boundaries.
+schedule = Scheduler(tzinfo=pytz.UTC)
 
 def test_scheduler_job():
     now = datetime.now(pytz.UTC)

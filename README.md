@@ -269,11 +269,11 @@ Follow [MongoDB's guide](https://www.mongodb.com/docs/atlas/security-add-mongodb
 >USER_PROFILES_COLLECTION=userProfiles
 >DRAFTS_COLLECTION=drafts
 >PREVIEW_COLLECTION=preview
->GROVE_API_KEY=your_grove_api_key
->GROVE_BASE_URL=https://grove-gateway-prod.azure-api.net/grove-foundry-prod/anthropic
+>GROVE_API_KEY=
+>GROVE_BASE_URL=https://ai-gateway.corp.mongodb.com/anthropic
 >GROVE_CHAT_MODEL=claude-haiku-4-5
 >EMBEDDINGS_URL=https://ai.mongodb.com
->VOYAGE_API_KEY=your_voyage_api_key
+>VOYAGE_API_KEY=
 >VOYAGE_EMBEDDING_MODEL=voyage-4-large
 >NEWSAPI_KEY=
 >TAVILY_API_KEYS=your_tavily_key1,your_tavily_key2

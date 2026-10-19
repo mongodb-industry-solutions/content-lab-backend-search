@@ -7,9 +7,17 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from typing import Optional
 from bson import ObjectId
+from bson.errors import InvalidId
 from db.mdb import MongoDBConnector
 import json
 from bson import json_util
+
+# Embedding vectors are 1024 floats per document and are never used by the clients
+# that read these list endpoints. Excluding them cuts the response size enormously.
+_EMBEDDING_PROJECTION = {"embedding": 0, "embedding_string": 0}
+
+# The `type` values the analysis pipeline writes into `suggestions`.
+SUGGESTION_TYPES = ("news_analysis", "reddit_analysis")
 # Create the router
 router = APIRouter(
     prefix="/api/content",
@@ -34,14 +42,21 @@ async def get_suggestions(
     """
     try:
         collection = db.get_collection("suggestions")
-        
+
         # Build filter query
         filter_query = {}
         if query:
             filter_query["source_query"] = {"$regex": query, "$options": "i"}
         if label:
             filter_query["label"] = label
-        if type and type in ["news_analysis", "reddit_analysis"]:
+        if type:
+            # An unrecognised type used to be dropped silently, so a typo returned
+            # unfiltered results that looked like a successful filtered query.
+            if type not in SUGGESTION_TYPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"type must be one of {list(SUGGESTION_TYPES)}",
+                )
             filter_query["type"] = type
             
         # Add time filter
@@ -70,6 +85,10 @@ async def get_suggestions(
             "count": len(results),
             "suggestions": results
         }
+    except HTTPException:
+        # Let deliberate 4xx responses through; the generic handler below would
+        # otherwise re-wrap them as a 500.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -83,16 +102,16 @@ async def get_news():
         collection = db.get_collection("news")
         cutoff_date = datetime.utcnow() - timedelta(days=3)
 
-        # 1. get the news from the last three days. 
+        # 1. get the news from the last three days.
         recent_news = list(
-            collection.find({"scraped_at": {"$gte": cutoff_date}})
+            collection.find({"scraped_at": {"$gte": cutoff_date}}, _EMBEDDING_PROJECTION)
             .sort("scraped_at", -1)
             .limit(4)
         )
         count = len(recent_news)
         if count < 4:
             older_news = list(
-                collection.find({"scraped_at": {"$lt": cutoff_date}})
+                collection.find({"scraped_at": {"$lt": cutoff_date}}, _EMBEDDING_PROJECTION)
                 .sort("scraped_at", -1)
                 .limit(4 - count)
             )
@@ -120,7 +139,7 @@ async def get_reddit():
         cutoff_date = datetime.utcnow() - timedelta(days=3)
         # First, get reddit posts from the last 3 days
         recent_reddit = list(
-            collection.find({"created_at": {"$gte": cutoff_date}})
+            collection.find({"created_at": {"$gte": cutoff_date}}, _EMBEDDING_PROJECTION)
             .sort("created_at", -1)
             .limit(10)
         )
@@ -128,7 +147,7 @@ async def get_reddit():
         if count < 10:
             # If not enough, get older reddit posts to fill up to 10
             older_reddit = list(
-                collection.find({"created_at": {"$lt": cutoff_date}})
+                collection.find({"created_at": {"$lt": cutoff_date}}, _EMBEDDING_PROJECTION)
                 .sort("created_at", -1)
                 .limit(10 - count)
             )
@@ -154,12 +173,19 @@ async def get_user_profile(
     """
     try:
         collection = db.get_collection("userProfiles")
-        userProfile = collection.find_one({"_id": ObjectId(userId)})
+        try:
+            oid = ObjectId(userId)
+        except (InvalidId, TypeError):
+            # A malformed id is a client error, not a server fault.
+            raise HTTPException(status_code=400, detail="userId is not a valid id")
+        userProfile = collection.find_one({"_id": oid})
 
         # Convert to string for JSON serialization
         if userProfile:
             userProfile["_id"] = str(userProfile["_id"])
 
         return userProfile
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))

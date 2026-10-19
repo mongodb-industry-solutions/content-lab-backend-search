@@ -11,6 +11,7 @@ from datetime import datetime
 import pytz
 import sys
 import os
+from starlette.concurrency import run_in_threadpool
 
 # Add the parent directory to the path to import scheduler_job
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,6 +31,23 @@ from scheduler_job.data_scheduler import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
+
+
+def _scheduler_tzinfo_name() -> str:
+    """Report the timezone the scheduler actually uses.
+
+    Previously the responses hardcoded "UTC" while the scheduler was constructed with
+    tzinfo=None and therefore ran on naive local time. Derive it from the live object
+    so the label cannot drift from reality again.
+    """
+    tz = getattr(schedule, "_Scheduler__tzinfo", None)
+    if tz is None:
+        return "local"
+    try:
+        return tz.tzname(None) or str(tz)
+    except Exception:
+        return str(tz)
+
 
 # Create the scheduler status model
 class SchedulerStatus(BaseModel):
@@ -106,7 +124,8 @@ async def run_news_scraper_manually():
     """Manually trigger news scraper job"""
     try:
         now = datetime.now(pytz.UTC)
-        run_news_scraper()
+        # Scraping is synchronous and slow; keep it off the event loop.
+        await run_in_threadpool(run_news_scraper)
         return JobResult(
             job_name="news_scraper",
             status="completed",
@@ -128,7 +147,7 @@ async def run_reddit_scraper_manually():
     """Manually trigger Reddit scraper job"""
     try:
         now = datetime.now(pytz.UTC)
-        run_reddit_scraper()
+        await run_in_threadpool(run_reddit_scraper)
         return JobResult(
             job_name="reddit_scraper",
             status="completed",
@@ -150,7 +169,7 @@ async def run_embeddings_manually():
     """Manually trigger embeddings processing job"""
     try:
         now = datetime.now(pytz.UTC)
-        process_embeddings()
+        await run_in_threadpool(process_embeddings)
         return JobResult(
             job_name="embeddings_processor",
             status="completed",
@@ -172,7 +191,7 @@ async def run_content_suggestions_manually():
     """Manually trigger content suggestions generation job"""
     try:
         now = datetime.now(pytz.UTC)
-        generate_content_suggestions()
+        await run_in_threadpool(generate_content_suggestions)
         return JobResult(
             job_name="content_suggestions",
             status="completed",
@@ -194,7 +213,7 @@ async def run_test_job_manually():
     """Manually trigger test scheduler job"""
     try:
         now = datetime.now(pytz.UTC)
-        test_scheduler_job()
+        await run_in_threadpool(test_scheduler_job)
         return JobResult(
             job_name="test_scheduler",
             status="completed",
@@ -254,7 +273,7 @@ async def scheduler_overview():
             return {
                 "overview": {
                     "max_exec": "N/A",
-                    "tzinfo": "UTC",
+                    "tzinfo": _scheduler_tzinfo_name(),
                     "priority_function": "N/A",
                     "jobs": [],
                     "message": f"No jobs scheduled (NODE_ENV={node_env}, jobs only run in 'prod')"
