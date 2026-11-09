@@ -519,28 +519,36 @@ def schedule_jobs():
         return
     
     logger.info(f"Scheduling jobs for production environment (NODE_ENV={node_env})")
-    
-    # news scraper runs
-    schedule.daily(datetime.strptime("04:00", "%H:%M").time(), run_news_scraper)
 
-    # reddit scraper runs 
-    schedule.daily(datetime.strptime("04:15", "%H:%M").time(), run_reddit_scraper)
+    def utc_time(hhmm: str) -> dt.time:
+        # The Scheduler instance is created with tzinfo=pytz.UTC (see above), so
+        # every trigger time must be timezone-aware - naive times raise
+        # SchedulerError("Can't use offset-naive and offset-aware datetimes together"),
+        # which used to kill the scheduler thread on its first registration.
+        # NOTE: datetime.time() (the method) silently DROPS tzinfo - .timetz() keeps it.
+        return datetime.strptime(hhmm, "%H:%M").replace(tzinfo=pytz.UTC).timetz()
+
+    # news scraper runs
+    schedule.daily(utc_time("04:00"), run_news_scraper)
+
+    # reddit scraper runs
+    schedule.daily(utc_time("04:15"), run_reddit_scraper)
 
     # embedding processor
-    schedule.daily(datetime.strptime("04:30", "%H:%M").time(), process_embeddings)
+    schedule.daily(utc_time("04:30"), process_embeddings)
 
-    # content suggestion generator 
-    schedule.daily(datetime.strptime("04:45", "%H:%M").time(), generate_content_suggestions)
+    # content suggestion generator
+    schedule.daily(utc_time("04:45"), generate_content_suggestions)
 
     # duplicate cleanup daily at 06:00 UTC
-    schedule.daily(datetime.strptime("06:00", "%H:%M").time(), cleanup_duplicates)
+    schedule.daily(utc_time("06:00"), cleanup_duplicates)
 
     # status checks every 4 hours
     for hour in range(0, 24, 4):
-        schedule.daily(datetime.strptime(f"{hour:02d}:00", "%H:%M").time(), log_scheduler_status)
+        schedule.daily(utc_time(f"{hour:02d}:00"), log_scheduler_status)
 
     # Schedule the test job to run every hour
-    schedule.hourly(dt.time(minute=0, second=0), test_scheduler_job)
+    schedule.hourly(dt.time(minute=0, second=0, tzinfo=pytz.UTC), test_scheduler_job)
     
     logger.info("Scheduled jobs configured!")
 
