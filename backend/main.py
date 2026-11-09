@@ -59,11 +59,24 @@ def run_scheduler():
     # Schedule jobs based on environment. Guarded: an exception here would
     # otherwise kill this thread silently (thread errors don't surface anywhere),
     # leaving the API up with zero scheduled jobs.
-    try:
-        schedule_jobs()
-    except Exception:
-        logger.exception("Failed to schedule jobs - scheduler thread is idle")
-    
+    # schedule_jobs() registers incrementally, so a mid-way failure would leave a
+    # partial schedule. Clear it and retry with backoff; if every attempt fails,
+    # leave the schedule empty rather than running a partial one.
+    import time
+    retry_delays = [5, 15, 45]
+    for attempt in range(len(retry_delays) + 1):
+        try:
+            schedule_jobs()
+            break
+        except Exception:
+            schedule.delete_jobs()
+            if attempt < len(retry_delays):
+                delay = retry_delays[attempt]
+                logger.exception(f"Failed to schedule jobs (attempt {attempt + 1}) - retrying in {delay}s")
+                time.sleep(delay)
+            else:
+                logger.critical("Scheduler registration failed - no jobs scheduled", exc_info=True)
+
     # Display scheduler overview on startup (only in prod)
     if node_env == "prod":
         logger.info("Scheduler Overview:")
