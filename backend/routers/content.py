@@ -34,8 +34,9 @@ async def get_suggestions(
     query: Optional[str] = None,
     label: Optional[str] = None,
     type: Optional[str] = None,
-    days: int = 7,
-    limit: int = 20
+    days: int = 30,
+    limit: int = 100,
+    skip: int = 0
 ):
     """
     Get content suggestions from the database with optional filtering
@@ -64,8 +65,13 @@ async def get_suggestions(
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             filter_query["analyzed_at"] = {"$gte": cutoff_date}
         
-        # Fetch results
-        results = list(collection.find(filter_query).sort("analyzed_at", -1).limit(limit))
+        # Fetch results (`skip` enables pagination)
+        results = list(
+            collection.find(filter_query)
+            .sort("analyzed_at", -1)
+            .skip(max(skip, 0))
+            .limit(limit)
+        )
         
         # Convert to string for JSON serialization
         for result in results:

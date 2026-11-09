@@ -55,9 +55,14 @@ def run_scheduler():
     node_env = os.getenv("NODE_ENV", "").lower()
     
     logger.info("Starting scheduler thread")
-    
-    # Schedule jobs based on environment
-    schedule_jobs()
+
+    # Schedule jobs based on environment. Guarded: an exception here would
+    # otherwise kill this thread silently (thread errors don't surface anywhere),
+    # leaving the API up with zero scheduled jobs.
+    try:
+        schedule_jobs()
+    except Exception:
+        logger.exception("Failed to schedule jobs - scheduler thread is idle")
     
     # Display scheduler overview on startup (only in prod)
     if node_env == "prod":
